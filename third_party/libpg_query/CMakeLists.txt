@@ -21,6 +21,10 @@ add_library(duckdb_pg_query STATIC
 target_include_directories(
   duckdb_pg_query
   PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+
+ # Add this line to disable C++20 modules scanning for this target
+set_target_properties(duckdb_pg_query PROPERTIES CXX_SCAN_FOR_MODULES OFF)
+
 set_target_properties(duckdb_pg_query PROPERTIES EXPORT_NAME duckdb_duckdb_pg_query)
 
 install(TARGETS duckdb_pg_query

@@ -1,26 +1,35 @@
-cmake_minimum_required(VERSION 3.5...3.29)
+cmake_minimum_required(VERSION 3.13.4)
 
 if(NOT CLANG_TIDY)
   find_package(Python3)
 endif()
 
-if(POLICY CMP0026)
-  cmake_policy(SET CMP0026 NEW)
-endif()
+# if(POLICY CMP0026)
+#   cmake_policy(SET CMP0026 NEW)
+# endif()
 
-if(POLICY CMP0051)
-  cmake_policy(SET CMP0051 NEW)
-endif()
+# if(POLICY CMP0051)
+#   cmake_policy(SET CMP0051 NEW)
+# endif()
 
-if(POLICY CMP0054)
-  cmake_policy(SET CMP0054 NEW)
-endif()
+# if(POLICY CMP0054)
+#   cmake_policy(SET CMP0054 NEW)
+# endif()
 
-if(POLICY CMP0063)
-  cmake_policy(SET CMP0063 NEW)
-endif()
+# if(POLICY CMP0063)
+#   cmake_policy(SET CMP0063 NEW)
+# endif()
 
 project(DuckDB)
+
+
+# include_directories(${PROJECT_SOURCE_DIR}/extension/lingodb_ext/include)
+# include_directories(${PROJECT_SOURCE_DIR}/extension/lingodb_ext/vendored)
+
+include_directories(lingodb_ext/include)
+add_subdirectory(lingodb_ext)
+
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 find_package(Threads REQUIRED)
 
@@ -28,7 +37,7 @@ set(DUCKDB_MODULE_BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(CMAKE_CXX_STANDARD "11" CACHE STRING "C++ standard to enforce")
+set(CMAKE_CXX_STANDARD "20" CACHE STRING "C++ standard to enforce")
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -664,6 +673,10 @@ if(OS_NAME STREQUAL "windows")
     message(FATAL_ERROR "The jemalloc extension is not supported on Windows")
   endif()
 endif()
+
+
+
+
 
 
 include_directories(src/include)
@@ -1322,6 +1335,7 @@ foreach(EXT_NAME IN LISTS DUCKDB_EXTENSION_NAMES)
   endif()
 endforeach()
 
+
 if (BUILD_MAIN_DUCKDB_LIBRARY)
   add_subdirectory(src)
   add_subdirectory(tools)
@@ -1559,3 +1573,6 @@ if(EXISTS ${CMAKE_CONFIG_TEMPLATE} AND EXISTS ${CMAKE_CONFIG_VERSION_TEMPLATE})
           "${PROJECT_BINARY_DIR}/DuckDBConfigVersion.cmake"
     DESTINATION "${INSTALL_CMAKE_DIR}")
 endif()
+
+
+target_link_libraries(duckdb PRIVATE lingodb_ext)
