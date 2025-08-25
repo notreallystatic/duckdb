@@ -60,13 +60,13 @@ endfunction()
 if(AMALGAMATION_BUILD)
 
   add_library(duckdb SHARED "${PROJECT_SOURCE_DIR}/src/amalgamation/duckdb.cpp")
-  target_link_libraries(duckdb ${DUCKDB_SYSTEM_LIBS})
+  target_link_libraries(duckdb ${DUCKDB_SYSTEM_LIBS} ${LIBS} ${LLVM_LINK_COMPONENTS})
   link_threads(duckdb PUBLIC)
   link_extension_libraries(duckdb PRIVATE)
 
   add_library(duckdb_static STATIC
               "${PROJECT_SOURCE_DIR}/src/amalgamation/duckdb.cpp")
-  target_link_libraries(duckdb_static ${DUCKDB_SYSTEM_LIBS})
+  target_link_libraries(duckdb_static ${DUCKDB_SYSTEM_LIBS} ${LIBS} ${LLVM_LINK_COMPONENTS})
   link_threads(duckdb_static PUBLIC)
   link_extension_libraries(duckdb_static PUBLIC)
 

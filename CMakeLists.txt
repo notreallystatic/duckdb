@@ -144,11 +144,13 @@ set(LLVM_LINK_COMPONENTS
         Core
         nativecodegen
         OrcJIT
+
+      CACHE STRING "LLVM link components"
 )
 if (CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
-    set(LLVM_LINK_COMPONENTS ${LLVM_LINK_COMPONENTS} AArch64)
+    set(LLVM_LINK_COMPONENTS ${LLVM_LINK_COMPONENTS} AArch64 CACHE STRING "LLVM link components")
 elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
-    set(LLVM_LINK_COMPONENTS ${LLVM_LINK_COMPONENTS} X86)
+    set(LLVM_LINK_COMPONENTS ${LLVM_LINK_COMPONENTS} X86 CACHE STRING "LLVM link components")
 else ()
     message(FATAL_ERROR "Unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
 endif ()
@@ -181,6 +183,7 @@ set(LIBS
         MLIRSideEffectInterfaces
         MLIRTransforms
         MLIRMathTransforms
+        CACHE STRING "MLIR/LLVM libraries"
 )
 
 # --------------- END :: lingodb dependencies ----------------
@@ -1731,5 +1734,5 @@ if(EXISTS ${CMAKE_CONFIG_TEMPLATE} AND EXISTS ${CMAKE_CONFIG_VERSION_TEMPLATE})
 endif()
 
 
-target_link_libraries(duckdb PRIVATE lingodb_ext)
+target_link_libraries(duckdb PRIVATE lingodb_ext ${LIBS})
 
