@@ -25,6 +25,15 @@ project(DuckDB)
 set(CMAKE_CXX_STANDARD "20" CACHE STRING "C++ standard to enforce")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Disable warnings
+if(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /w")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /w")
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -w")
+endif()
+
 include_directories(src/include)
 include_directories(third_party/thrift/thrift)
 include_directories(third_party/thrift)
@@ -159,37 +168,55 @@ get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
 get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
 get_property(translation_libs GLOBAL PROPERTY MLIR_TRANSLATION_LIBS)
 get_property(extension_libs GLOBAL PROPERTY MLIR_EXTENSION_LIBS)
-set(LIBS
-        ${dialect_libs}
-        ${extension_libs}
-        ${conversion_libs}
-        ${translation_libs}
+set(LINGODB_EXTERNAL_LIBS
+    ${dialect_libs}
+    ${extension_libs}
+    ${conversion_libs}
+    ${translation_libs}
         MLIROptLib
-        MLIRRelAlg
-        MLIRTupleStream
-        MLIRSubOperator
-        MLIRUtil
-        MLIRDB
-        MLIRArrow
         MLIRIR
         MLIRParser
         MLIRPass
         MLIRSupport
         MLIRLLVMToLLVMIRTranslation
         MLIRTargetLLVMIRExport
-        MLIRSupport
         MLIRAnalysis
         MLIRCallInterfaces
         MLIRSideEffectInterfaces
         MLIRTransforms
         MLIRMathTransforms
-        CACHE STRING "MLIR/LLVM libraries"
+)
+
+set(LINGODB_INTERNAL_LIBS
+        MLIRRelAlg
+        MLIRTupleStream
+        MLIRSubOperator
+        MLIRUtil
+        MLIRDB
+        MLIRArrow
+        mlir-support
+    utility
+    runtime_funcs_ptr
+    MLIRDBToArrowStd
+    MLIRArrowToStd
+    MLIRelAlgToSubOp
+    MLIRSubOpToControlFlow
+    MLIRUtilToLLVM
+)
+
+set (LIBS
+  ${LINGODB_EXTERNAL_LIBS}
+  ${LINGODB_INTERNAL_LIBS}
+  CACHE STRING "MLIR/LLVM libraries"
 )
 
 # --------------- END :: lingodb dependencies ----------------
 
 include_directories(lingodb_ext/include)
 add_subdirectory(lingodb_ext)
+
+include_directories(${CMAKE_BINARY_DIR}/lingodb_ext/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lingodb_ext/vendored)
 
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 

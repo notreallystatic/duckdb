@@ -1,5 +1,4 @@
 #include "duckdb/main/client_context.hpp"
-
 #include "duckdb/catalog/catalog_entry/scalar_function_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_search_path.hpp"
@@ -46,7 +45,11 @@
 #include "duckdb/logging/log_type.hpp"
 #include "duckdb/logging/log_manager.hpp"
 #include "duckdb/main/settings.hpp"
+
 #include "mlir/IR/MLIRContext.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+
 #include "lingodb/compiler/Dialect/DB/IR/DBDialect.h"
 #include "lingodb/compiler/Dialect/RelAlg/IR/RelAlgDialect.h"
 #include "lingodb/compiler/Dialect/SubOperator/SubOperatorDialect.h"
@@ -54,7 +57,27 @@
 #include "lingodb/compiler/Dialect/TupleStream/TupleStreamDialect.h"
 #include "lingodb/compiler/Dialect/util/UtilDialect.h"
 
+#include <iostream>
+
 namespace duckdb {
+
+void MLIRContainer::init() {
+	registry.insert<mlir::BuiltinDialect>();
+	registry.insert<lingodb::compiler::dialect::relalg::RelAlgDialect>();
+	registry.insert<lingodb::compiler::dialect::subop::SubOperatorDialect>();
+	registry.insert<lingodb::compiler::dialect::tuples::TupleStreamDialect>();
+	registry.insert<lingodb::compiler::dialect::db::DBDialect>();
+	registry.insert<mlir::func::FuncDialect>();
+	registry.insert<mlir::arith::ArithDialect>();
+
+	registry.insert<mlir::memref::MemRefDialect>();
+	registry.insert<lingodb::compiler::dialect::util::UtilDialect>();
+	registry.insert<mlir::scf::SCFDialect>();
+	registry.insert<mlir::LLVM::LLVMDialect>();
+	context.appendDialectRegistry(registry);
+	context.loadAllAvailableDialects();
+	context.loadDialect<lingodb::compiler::dialect::relalg::RelAlgDialect>();
+}
 
 struct ActiveQueryContext {
 public:
@@ -156,6 +179,12 @@ ClientContext::ClientContext(shared_ptr<DatabaseInstance> database)
 	LoggingContext context(LogContextScope::CONNECTION);
 	logger = db->GetLogManager().CreateLogger(context, true);
 	client_data = make_uniq<ClientData>(*this);
+}
+
+void ClientContext::readCompileConfig() {
+	std::cout << "Should compile queries: 0(no), 1(yes)" << std::endl;
+	std::cin >> this->compile_queries;
+	std::cout << "Compile queries set to: " << this->compile_queries << std::endl;
 }
 
 ClientContext::~ClientContext() {
