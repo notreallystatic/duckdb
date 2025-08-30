@@ -73,6 +73,8 @@ public:
 	const string &GetColumnName(const ColumnIndex &column_index) const;
 
 public:
+	// void PrintOperatorTree(int depth = 0) override;
+	void Walk(ClientContext &context) override;
 	void SetColumnIds(vector<ColumnIndex> &&column_ids);
 	void AddColumnId(column_t column_id);
 	void ClearColumnIds();

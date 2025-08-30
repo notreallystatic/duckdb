@@ -9,6 +9,7 @@
 #pragma once
 
 #include "duckdb/planner/logical_operator.hpp"
+#include "duckdb/catalog/catalog_entry.hpp"
 
 namespace duckdb {
 
@@ -23,6 +24,7 @@ public:
 	idx_t table_index;
 
 public:
+	void Walk(ClientContext &context) override;
 	vector<ColumnBinding> GetColumnBindings() override;
 	void Serialize(Serializer &serializer) const override;
 	static unique_ptr<LogicalOperator> Deserialize(Deserializer &deserializer);

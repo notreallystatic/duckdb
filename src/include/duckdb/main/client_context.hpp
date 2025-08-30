@@ -66,7 +66,7 @@ class RegisteredStateManager;
 
 class MLIRContainer {
 private:
-	MLIRContainer() {};
+	MLIRContainer();
 	MLIRContainer(const MLIRContainer &) = delete;
 	MLIRContainer &operator=(const MLIRContainer &) = delete;
 
@@ -76,10 +76,14 @@ public:
 		return instance;
 	}
 
-	mlir::MLIRContext context;
-	mlir::DialectRegistry registry;
+	static mlir::MLIRContext context;
+	static mlir::DialectRegistry registry;
+	static mlir::OpBuilder builder; // Declaration only
+	static mlir::ModuleOp moduleOp;
+	static mlir::OpPrintingFlags flags;
 
-	void init();
+	static void init();
+	static void print();
 };
 
 struct PendingQueryParameters {

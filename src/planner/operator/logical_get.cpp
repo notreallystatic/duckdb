@@ -11,9 +11,36 @@
 #include "duckdb/common/serializer/deserializer.hpp"
 #include "duckdb/parser/tableref/table_function_ref.hpp"
 
+#include <iostream>
+
 namespace duckdb {
 
 LogicalGet::LogicalGet() : LogicalOperator(LogicalOperatorType::LOGICAL_GET) {
+}
+
+void LogicalGet::Walk(ClientContext &context) {
+	auto table_catalog = GetTable();
+	if (!table_catalog) {
+		std::cout << "LogicalGet operator with no associated table." << std::endl;
+		std::cout << "Table index :: " << table_index << std::endl;
+		// print the table name
+		std::cout << "Table name :: " << GetName() << std::endl;
+		for (auto &col : column_ids) {
+			std::cout << " - col name :: " << GetColumnName(col) << " (" << GetColumnType(col).ToString() << ")"
+			          << std::endl;
+		}
+
+	} else {
+		auto table_name = table_catalog ? table_catalog->name : "<unknown table>";
+
+		const auto &column_list = table_catalog->GetColumns();
+
+		for (auto &col : column_list.Logical()) {
+			std::cout << " - " << col.Name() << " (" << col.Type().ToString() << ")" << std::endl;
+		}
+
+		std::cout << "Walking LogicalGet operator" << std::endl;
+	}
 }
 
 LogicalGet::LogicalGet(idx_t table_index, TableFunction function, unique_ptr<FunctionData> bind_data,
