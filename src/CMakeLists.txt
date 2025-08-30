@@ -1,5 +1,7 @@
 add_definitions(-DDUCKDB)
 
+add_subdirectory(mlir_util)
+
 if(${DISABLE_THREADS})
   add_definitions(-DDUCKDB_NO_THREADS)
 endif()
@@ -60,13 +62,13 @@ endfunction()
 if(AMALGAMATION_BUILD)
 
   add_library(duckdb SHARED "${PROJECT_SOURCE_DIR}/src/amalgamation/duckdb.cpp")
-  target_link_libraries(duckdb ${DUCKDB_SYSTEM_LIBS} ${LIBS} ${LLVM_LINK_COMPONENTS})
+  target_link_libraries(duckdb mlir_util ${DUCKDB_SYSTEM_LIBS} ${LIBS} ${LLVM_LINK_COMPONENTS})
   link_threads(duckdb PUBLIC)
   link_extension_libraries(duckdb PRIVATE)
 
   add_library(duckdb_static STATIC
               "${PROJECT_SOURCE_DIR}/src/amalgamation/duckdb.cpp")
-  target_link_libraries(duckdb_static ${DUCKDB_SYSTEM_LIBS} ${LIBS} ${LLVM_LINK_COMPONENTS})
+  target_link_libraries(duckdb_static mlir_util ${DUCKDB_SYSTEM_LIBS} ${LIBS} ${LLVM_LINK_COMPONENTS})
   link_threads(duckdb_static PUBLIC)
   link_extension_libraries(duckdb_static PUBLIC)
 
@@ -131,12 +133,12 @@ else()
     target_sources(duckdb PRIVATE version.rc)
   endif()
 
-  target_link_libraries(duckdb PUBLIC ${DUCKDB_LINK_LIBS})
+  target_link_libraries(duckdb PUBLIC mlir_util ${DUCKDB_LINK_LIBS})
   link_threads(duckdb PUBLIC)
   link_extension_libraries(duckdb PRIVATE)
 
   add_library(duckdb_static STATIC ${ALL_OBJECT_FILES})
-  target_link_libraries(duckdb_static PUBLIC ${DUCKDB_LINK_LIBS})
+  target_link_libraries(duckdb_static PUBLIC mlir_util ${DUCKDB_LINK_LIBS})
   link_threads(duckdb_static PUBLIC)
   link_extension_libraries(duckdb_static PUBLIC)
 
@@ -161,7 +163,7 @@ else()
 endif()
 
 install(
-  TARGETS duckdb duckdb_static lingodb_ext ${LINGODB_INTERNAL_LIBS}
+  TARGETS duckdb duckdb_static lingodb_ext mlir_util ${LINGODB_INTERNAL_LIBS}
   EXPORT "${DUCKDB_EXPORT_SET}"
   LIBRARY DESTINATION "${INSTALL_LIB_DIR}"
   ARCHIVE DESTINATION "${INSTALL_LIB_DIR}"

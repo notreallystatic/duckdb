@@ -10,8 +10,24 @@
 #include "duckdb/common/serializer/serializer.hpp"
 #include "duckdb/common/serializer/deserializer.hpp"
 #include "duckdb/parser/tableref/table_function_ref.hpp"
+#include "duckdb/main/client_context.hpp"
 
 #include <iostream>
+
+#include "lingodb/compiler/Dialect/DB/IR/DBDialect.h"
+#include "lingodb/compiler/Dialect/RelAlg/IR/RelAlgDialect.h"
+#include "lingodb/compiler/Dialect/SubOperator/SubOperatorDialect.h"
+#include "lingodb/compiler/Dialect/SubOperator/SubOperatorOps.h"
+#include "lingodb/compiler/Dialect/TupleStream/TupleStreamDialect.h"
+#include "lingodb/compiler/Dialect/util/UtilDialect.h"
+#include "lingodb/compiler/frontend/SQL/Parser.h"
+#include "lingodb/runtime/Session.h"
+
+#include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/Dialect.h"
 
 namespace duckdb {
 
@@ -25,6 +41,12 @@ void LogicalGet::Walk(ClientContext &context) {
 		std::cout << "Table index :: " << table_index << std::endl;
 		// print the table name
 		std::cout << "Table name :: " << GetName() << std::endl;
+		const string table_name = "demo_table";
+
+		mlir::StringAttr tableNameAttr;
+		mlir::SmallVector<mlir::Attribute> columnNames;
+		mlir::SmallVector<mlir::Attribute> columnTypes;
+
 		for (auto &col : column_ids) {
 			std::cout << " - col name :: " << GetColumnName(col) << " (" << GetColumnType(col).ToString() << ")"
 			          << std::endl;

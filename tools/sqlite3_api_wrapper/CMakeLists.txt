@@ -20,7 +20,7 @@ set(SQLITE_API_WRAPPER_FILES shell_extension.cpp sqlite3_api_wrapper.cpp
                              ${ALL_OBJECT_FILES})
 
 add_library(sqlite3_api_wrapper_static STATIC ${SQLITE_API_WRAPPER_FILES})
-target_link_libraries(sqlite3_api_wrapper_static lingodb_ext ${LIBS})
+target_link_libraries(sqlite3_api_wrapper_static lingodb_ext mlir_util ${LIBS})
 target_link_libraries(sqlite3_api_wrapper_static duckdb_static ${LIBS})
 if(NOT AMALGAMATION_BUILD)
   target_link_libraries(sqlite3_api_wrapper_static duckdb_utf8proc)
@@ -31,7 +31,7 @@ if(NOT WIN32 AND NOT ZOS)
   add_library(sqlite3_api_wrapper SHARED ${SQLITE_API_WRAPPER_FILES})
   target_link_libraries(sqlite3_api_wrapper duckdb_static
                         ${DUCKDB_EXTRA_LINK_FLAGS} ${LIBS})
-  target_link_libraries(sqlite3_api_wrapper lingodb_ext ${LIBS})
+  target_link_libraries(sqlite3_api_wrapper lingodb_ext mlir_util ${LIBS})
   link_threads(sqlite3_api_wrapper "")
 endif()
 

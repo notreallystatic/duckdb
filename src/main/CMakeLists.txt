@@ -52,4 +52,4 @@ set(ALL_OBJECT_FILES
     ${ALL_OBJECT_FILES} $<TARGET_OBJECTS:duckdb_main>
     PARENT_SCOPE)
 
-target_link_libraries(duckdb_main PRIVATE lingodb_ext ${LIBS} ${LLVM_LINK_COMPONENTS})
+target_link_libraries(duckdb_main PRIVATE lingodb_ext mlir_util ${LIBS} ${LLVM_LINK_COMPONENTS})
