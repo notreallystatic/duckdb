@@ -12,7 +12,25 @@
 
 #include <iostream>
 
+#include <stack>
+#include <unordered_set>
+#include <vector>
+
 namespace duckdb {
+
+bool MLIRStringInfo::isEqual(std::string a, std::string b) {
+	return a == b;
+}
+std::string MLIRStringInfo::getEmptyKey() {
+	return "";
+}
+std::string MLIRStringInfo::getTombstoneKey() {
+	return "-";
+}
+
+size_t MLIRStringInfo::getHashValue(std::string str) {
+	return std::hash<std::string> {}(str);
+}
 
 TupleScope::TupleScope(MLIRTranslationContext *context) : context(context) {
 	context->currTuple.push(context->currTuple.top());
@@ -56,7 +74,7 @@ const lingodb::compiler::dialect::tuples::Column *MLIRTranslationContext::getAtt
 TupleScope MLIRTranslationContext::createTupleScope() {
 	return TupleScope(this);
 }
-ResolverScope MLIRTranslationContext::createResolverScope() {
+MLIRTranslationContext::ResolverScope MLIRTranslationContext::createResolverScope() {
 	return ResolverScope(resolver);
 }
 

@@ -11,19 +11,38 @@
 
 #include "mlir/IR/BuiltinDialect.h"
 
+#include <stack>
+#include <unordered_set>
+#include <vector>
+#include <chrono>
+#include <fstream>
+#include <functional>
+#include <iostream>
+#include <limits>
+#include <unordered_set>
+
 namespace duckdb {
 
 struct DefineScope;
 struct TupleScope;
+
+struct MLIRStringInfo {
+	static bool isEqual(std::string a, std::string b);
+	static std::string getEmptyKey();
+	static std::string getTombstoneKey();
+	static size_t getHashValue(std::string str);
+};
+
 struct MLIRTranslationContext {
+public:
 	std::stack<mlir::Value> currTuple;
 	std::unordered_set<const lingodb::compiler::dialect::tuples::Column *> useZeroInsteadNull;
 	std::stack<std::vector<std::pair<std::string, const lingodb::compiler::dialect::tuples::Column *>>>
 	    definedAttributes;
 
-	llvm::ScopedHashTable<std::string, const lingodb::compiler::dialect::tuples::Column *, StringInfo> resolver;
+	llvm::ScopedHashTable<std::string, const lingodb::compiler::dialect::tuples::Column *, MLIRStringInfo> resolver;
 	using ResolverScope =
-	    llvm::ScopedHashTable<std::string, const lingodb::compiler::dialect::tuples::Column *, StringInfo>::ScopeTy;
+	    llvm::ScopedHashTable<std::string, const lingodb::compiler::dialect::tuples::Column *, MLIRStringInfo>::ScopeTy;
 	MLIRTranslationContext();
 	mlir::Value getCurrentTuple();
 	void setCurrentTuple(mlir::Value v);
@@ -41,12 +60,14 @@ struct MLIRTranslationContext {
 	             const lingodb::compiler::dialect::tuples::Column *col2);
 };
 struct DefineScope {
+public:
 	MLIRTranslationContext &context;
 	DefineScope(MLIRTranslationContext &context);
 	~DefineScope();
 };
 
 struct TupleScope {
+public:
 	MLIRTranslationContext *context;
 	bool active;
 	TupleScope(MLIRTranslationContext *context);

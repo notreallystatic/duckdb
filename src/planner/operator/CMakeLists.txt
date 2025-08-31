@@ -49,3 +49,5 @@ add_library_unity(
 set(ALL_OBJECT_FILES
     ${ALL_OBJECT_FILES} $<TARGET_OBJECTS:duckdb_planner_operator>
     PARENT_SCOPE)
+
+target_link_libraries(duckdb_planner_operator PRIVATE mlir_util ${LIBS})

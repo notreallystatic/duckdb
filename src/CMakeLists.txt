@@ -133,12 +133,12 @@ else()
     target_sources(duckdb PRIVATE version.rc)
   endif()
 
-  target_link_libraries(duckdb PUBLIC mlir_util ${DUCKDB_LINK_LIBS})
+  target_link_libraries(duckdb PUBLIC mlir_util ${LIBS} ${DUCKDB_LINK_LIBS})
   link_threads(duckdb PUBLIC)
   link_extension_libraries(duckdb PRIVATE)
 
   add_library(duckdb_static STATIC ${ALL_OBJECT_FILES})
-  target_link_libraries(duckdb_static PUBLIC mlir_util ${DUCKDB_LINK_LIBS})
+  target_link_libraries(duckdb_static PUBLIC mlir_util ${LIBS} ${DUCKDB_LINK_LIBS})
   link_threads(duckdb_static PUBLIC)
   link_extension_libraries(duckdb_static PUBLIC)
 

@@ -81,8 +81,8 @@ void LogicalGet::Walk(ClientContext &context) {
 		std::string scopeName = table_name;
 		std::vector<mlir::NamedAttribute> columns;
 		auto &mlirContext = duckdb::MLIRContainer::context;
-		// TranslationContext translationContext;
-		// auto scope = translationContext.createResolverScope();
+		MLIRTranslationContext translationContext;
+		auto scope = translationContext.createResolverScope();
 
 		lingodb::compiler::dialect::tuples::ColumnManager &attrManager =
 		    module.getContext()
@@ -91,10 +91,16 @@ void LogicalGet::Walk(ClientContext &context) {
 
 		for (auto &col : column_ids) {
 			auto attrDef = attrManager.createDef(scopeName, GetColumnName(col));
-			attrDef.getColumn().type = convertDuckDBTypeToMLIRType(GetColumnType(col));
+			attrDef.getColumn().type = convertDuckDBTypeToNullableType(GetColumnType(col));
 			columns.push_back(builder.getNamedAttr(GetColumnName(col), attrDef));
-			// mlirContext.mapAttribute()
+			translationContext.mapAttribute(scope, GetColumnName(col), &attrDef.getColumn());
+			translationContext.mapAttribute(scope, table_name + "." + GetColumnName(col), &attrDef.getColumn());
 		}
+		auto baseTableOp = builder.create<lingodb::compiler::dialect::relalg::BaseTableOp>(
+		    builder.getUnknownLoc(), lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext()),
+		    table_name, builder.getDictionaryAttr(columns));
+
+		baseTableOp.dump();
 
 		// // Create a main function to hold the query logic
 		// auto funcOp = builder.create<mlir::func::FuncOp>(loc, "main", builder.getFunctionType({}, {}));
