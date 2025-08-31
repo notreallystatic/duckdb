@@ -13,6 +13,90 @@
 #include <iostream>
 
 namespace duckdb {
+
+TupleScope::TupleScope(MLIRTranslationContext *context) : context(context) {
+	context->currTuple.push(context->currTuple.top());
+}
+
+TupleScope::~TupleScope() {
+	context->currTuple.pop();
+}
+
+DefineScope::DefineScope(MLIRTranslationContext &context) : context(context) {
+	context.definedAttributes.push({});
+}
+
+DefineScope::~DefineScope() {
+	context.definedAttributes.pop();
+}
+
+MLIRTranslationContext::MLIRTranslationContext() : currTuple(), resolver() {
+	currTuple.push(mlir::Value());
+	definedAttributes.push({});
+}
+mlir::Value MLIRTranslationContext::getCurrentTuple() {
+	return currTuple.top();
+}
+void MLIRTranslationContext::setCurrentTuple(mlir::Value v) {
+	currTuple.top() = v;
+}
+void MLIRTranslationContext::mapAttribute(ResolverScope &scope, std::string name,
+                                          const lingodb::compiler::dialect::tuples::Column *attr) {
+	definedAttributes.top().push_back({name, attr});
+	resolver.insertIntoScope(&scope, std::move(name), attr);
+}
+const lingodb::compiler::dialect::tuples::Column *MLIRTranslationContext::getAttribute(std::string name) {
+	const auto *res = resolver.lookup(name);
+	if (!res) {
+		// error("could not resolve '" + name + "'");
+		throw std::runtime_error("could not resolve '" + name + "'");
+	}
+	return res;
+}
+TupleScope MLIRTranslationContext::createTupleScope() {
+	return TupleScope(this);
+}
+ResolverScope MLIRTranslationContext::createResolverScope() {
+	return ResolverScope(resolver);
+}
+
+DefineScope MLIRTranslationContext::createDefineScope() {
+	return DefineScope(*this);
+}
+const std::vector<std::pair<std::string, const lingodb::compiler::dialect::tuples::Column *>> &
+MLIRTranslationContext::getAllDefinedColumns() {
+	return definedAttributes.top();
+}
+void MLIRTranslationContext::removeFromDefinedColumns(const lingodb::compiler::dialect::tuples::Column *col) {
+	auto &currDefinedColumns = definedAttributes.top();
+	auto start = currDefinedColumns.begin();
+	auto end = currDefinedColumns.end();
+	auto position = std::find_if(start, end, [&](auto el) { return el.second == col; });
+	if (position != currDefinedColumns.end()) {
+		currDefinedColumns.erase(position);
+	}
+}
+
+void MLIRTranslationContext::replace(ResolverScope &scope, const lingodb::compiler::dialect::tuples::Column *col,
+                                     const lingodb::compiler::dialect::tuples::Column *col2) {
+	auto &currDefinedColumns = definedAttributes.top();
+	auto start = currDefinedColumns.begin();
+	auto end = currDefinedColumns.end();
+	std::vector<std::string> toReplace;
+	while (start != end) {
+		auto position = std::find_if(start, end, [&](auto el) { return el.second == col; });
+		if (position != currDefinedColumns.end()) {
+			start = position + 1;
+			toReplace.push_back(position->first);
+		} else {
+			start = end;
+		}
+	}
+	for (auto s : toReplace) {
+		mapAttribute(scope, s, col2);
+	}
+}
+
 MLIRContainer::MLIRContainer() {
 }
 
@@ -43,6 +127,11 @@ void MLIRContainer::init() {
 	moduleOp = builder.create<mlir::ModuleOp>(builder.getUnknownLoc());
 
 	builder.setInsertionPointToStart(moduleOp.getBody());
+	std::cout << "dumping module :: \n";
+	moduleOp.dump();
+}
+
+void MLIRContainer::createMainFuncBlock() {
 	auto *queryBlock = new mlir::Block();
 	mlir::func::FuncOp funcOp =
 	    builder.create<mlir::func::FuncOp>(builder.getUnknownLoc(), "main", builder.getFunctionType({}, {}));
