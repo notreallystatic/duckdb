@@ -88,7 +88,7 @@ void LogicalGet::Walk(ClientContext &context) {
 		auto &memberManager = builder.getContext()
 		                          ->getLoadedDialect<lingodb::compiler::dialect::subop::SubOperatorDialect>()
 		                          ->getMemberManager();
-
+		builder.setInsertionPointToStart(module.getBody());
 		mlir::Block *queryBlock = new mlir::Block();
 		mlir::Type localTableType;
 		std::optional<mlir::Value> queryOpResult;
@@ -141,6 +141,7 @@ void LogicalGet::Walk(ClientContext &context) {
 			queryOpResult = queryOp.getResults()[0];
 			builder.create<lingodb::compiler::dialect::subop::SetResultOp>(builder.getUnknownLoc(), 0,
 			                                                               queryOpResult.value());
+			builder.create<mlir::func::ReturnOp>(builder.getUnknownLoc());
 		}
 
 		mlir::func::FuncOp funcOp =
