@@ -10,6 +10,10 @@
 #include "lingodb/compiler/Dialect/TupleStream/TupleStreamDialect.h"
 #include "lingodb/compiler/Dialect/util/UtilDialect.h"
 
+#include "lingodb/compiler/mlir-support/eval.h"
+#include "lingodb/execution/Execution.h"
+#include "lingodb/scheduler/Scheduler.h"
+
 #include <iostream>
 
 #include <stack>
@@ -17,6 +21,29 @@
 #include <vector>
 
 namespace duckdb {
+
+void MLIRContainer::runMLIR(std::string input_mlir) {
+	std::cout << "Running MLIR  module now\n";
+	std::cout.flush();
+
+	// moduleOp->dump();
+
+	bool eagerLoading = std::getenv("LINGODB_BACKEND_ONLY");
+	std::shared_ptr<lingodb::runtime::Session> session =
+	    lingodb::runtime::Session::createSession("dbdir", eagerLoading);
+	lingodb::compiler::support::eval::init();
+
+	lingodb::execution::ExecutionMode runMode = lingodb::execution::getExecutionMode();
+	std::cout << "Execution mode: " << static_cast<int>(runMode) << "\n";
+	std::cout.flush();
+	auto queryExecutionConfig = lingodb::execution::createQueryExecutionConfig(runMode, false);
+	// queryExecutionConfig->timingProcessor = std::make_unique<lingodb::execution::TimingPrinter>("some file");
+
+	auto scheduler = lingodb::scheduler::startScheduler();
+	auto executer = lingodb::execution::QueryExecuter::createDefaultExecuter(std::move(queryExecutionConfig), *session);
+	executer->fromData(input_mlir);
+	lingodb::scheduler::awaitEntryTask(std::make_unique<lingodb::execution::QueryExecutionTask>(std::move(executer)));
+}
 
 bool MLIRStringInfo::isEqual(std::string a, std::string b) {
 	return a == b;
@@ -118,48 +145,49 @@ void MLIRTranslationContext::replace(ResolverScope &scope, const lingodb::compil
 MLIRContainer::MLIRContainer() {
 }
 
-mlir::MLIRContext MLIRContainer::context;
-mlir::DialectRegistry MLIRContainer::registry;
-mlir::OpBuilder MLIRContainer::builder(&context);
+mlir::MLIRContext *MLIRContainer::context = new mlir::MLIRContext();
+mlir::DialectRegistry *MLIRContainer::registry = new mlir::DialectRegistry();
+mlir::OpBuilder *MLIRContainer::builder = new mlir::OpBuilder(context);
 mlir::ModuleOp MLIRContainer::moduleOp;
-mlir::OpPrintingFlags MLIRContainer::flags;
+mlir::OpPrintingFlags *MLIRContainer::flags = new mlir::OpPrintingFlags();
 
 void MLIRContainer::init() {
-	registry.insert<mlir::BuiltinDialect>();
-	registry.insert<lingodb::compiler::dialect::relalg::RelAlgDialect>();
-	registry.insert<lingodb::compiler::dialect::subop::SubOperatorDialect>();
-	registry.insert<lingodb::compiler::dialect::tuples::TupleStreamDialect>();
-	registry.insert<lingodb::compiler::dialect::db::DBDialect>();
-	registry.insert<mlir::func::FuncDialect>();
-	registry.insert<mlir::arith::ArithDialect>();
+	registry->insert<mlir::BuiltinDialect>();
+	registry->insert<lingodb::compiler::dialect::relalg::RelAlgDialect>();
+	registry->insert<lingodb::compiler::dialect::subop::SubOperatorDialect>();
+	registry->insert<lingodb::compiler::dialect::tuples::TupleStreamDialect>();
+	registry->insert<lingodb::compiler::dialect::db::DBDialect>();
+	registry->insert<mlir::func::FuncDialect>();
+	registry->insert<mlir::arith::ArithDialect>();
 
-	registry.insert<mlir::memref::MemRefDialect>();
-	registry.insert<lingodb::compiler::dialect::util::UtilDialect>();
-	registry.insert<mlir::scf::SCFDialect>();
-	registry.insert<mlir::LLVM::LLVMDialect>();
-	context.appendDialectRegistry(registry);
-	context.loadAllAvailableDialects();
-	context.loadDialect<lingodb::compiler::dialect::relalg::RelAlgDialect>();
+	registry->insert<mlir::memref::MemRefDialect>();
+	registry->insert<lingodb::compiler::dialect::util::UtilDialect>();
+	registry->insert<mlir::scf::SCFDialect>();
+	registry->insert<mlir::LLVM::LLVMDialect>();
+	context->appendDialectRegistry(*registry);
+	context->loadAllAvailableDialects();
+	context->loadDialect<lingodb::compiler::dialect::relalg::RelAlgDialect>();
 
-	builder = mlir::OpBuilder(&context);
-	moduleOp = builder.create<mlir::ModuleOp>(builder.getUnknownLoc());
+	// builder = mlir::OpBuilder(&context);
+	moduleOp = builder->create<mlir::ModuleOp>(builder->getUnknownLoc());
 
-	builder.setInsertionPointToStart(moduleOp.getBody());
+	builder->setInsertionPointToStart(moduleOp.getBody());
 	std::cout << "dumping module :: \n";
-	moduleOp.dump();
+	moduleOp->dump();
 }
 
 void MLIRContainer::createMainFuncBlock() {
 	auto *queryBlock = new mlir::Block();
 	mlir::func::FuncOp funcOp =
-	    builder.create<mlir::func::FuncOp>(builder.getUnknownLoc(), "main", builder.getFunctionType({}, {}));
+	    builder->create<mlir::func::FuncOp>(builder->getUnknownLoc(), "main", builder->getFunctionType({}, {}));
 	funcOp.getBody().push_back(queryBlock);
 }
 
 void MLIRContainer::print() {
 	std::cout << "MLIR so far :: \n";
-	flags.assumeVerified();
-	moduleOp->print(llvm::outs(), flags);
+	flags->assumeVerified();
+	moduleOp.dump();
+	// moduleOp.print(llvm::outs(), flags);
 }
 
 // mlir::Type convertDuckDBTypeToMLIRType(const LogicalType &type) {

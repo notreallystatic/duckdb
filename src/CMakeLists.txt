@@ -163,7 +163,7 @@ else()
 endif()
 
 install(
-  TARGETS duckdb duckdb_static lingodb_ext mlir_util ${LINGODB_INTERNAL_LIBS}
+  TARGETS duckdb duckdb_static lingodb_ext mlir_util runner scheduler MLIRSQLFrontend pg_query catalog mlirTypes ${LINGODB_INTERNAL_LIBS}
   EXPORT "${DUCKDB_EXPORT_SET}"
   LIBRARY DESTINATION "${INSTALL_LIB_DIR}"
   ARCHIVE DESTINATION "${INSTALL_LIB_DIR}"

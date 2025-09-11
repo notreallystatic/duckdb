@@ -86,15 +86,16 @@ public:
 		return instance;
 	}
 
-	static mlir::MLIRContext context;
-	static mlir::DialectRegistry registry;
-	static mlir::OpBuilder builder; // Declaration only
+	static mlir::MLIRContext *context;
+	static mlir::DialectRegistry *registry;
+	static mlir::OpBuilder *builder; // Declaration only
 	static mlir::ModuleOp moduleOp;
-	static mlir::OpPrintingFlags flags;
+	static mlir::OpPrintingFlags *flags;
 
 	static void init();
 	static void print();
 	static void createMainFuncBlock();
+	static void runMLIR(std::string input_mlir);
 
 	// static mlir::Type convertDuckDBTypeToMLIRType(const LogicalType &type);
 	// static mlir::Type convertDuckDBTypeToNullableType(const LogicalType &type);

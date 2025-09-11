@@ -36,23 +36,23 @@ namespace duckdb {
 mlir::Type convertDuckDBTypeToMLIRType(const LogicalType &type) {
 	switch (type.id()) {
 	case LogicalTypeId::BOOLEAN:
-		return mlir::IntegerType::get(&MLIRContainer::context, 1);
+		return mlir::IntegerType::get(MLIRContainer::context, 1);
 	case LogicalTypeId::TINYINT:
-		return mlir::IntegerType::get(&MLIRContainer::context, 8);
+		return mlir::IntegerType::get(MLIRContainer::context, 8);
 	case LogicalTypeId::SMALLINT:
-		return mlir::IntegerType::get(&MLIRContainer::context, 16);
+		return mlir::IntegerType::get(MLIRContainer::context, 16);
 	case LogicalTypeId::INTEGER:
-		return mlir::IntegerType::get(&MLIRContainer::context, 32);
+		return mlir::IntegerType::get(MLIRContainer::context, 32);
 	case LogicalTypeId::BIGINT:
-		return mlir::IntegerType::get(&MLIRContainer::context, 64);
+		return mlir::IntegerType::get(MLIRContainer::context, 64);
 	case LogicalTypeId::HUGEINT:
-		return mlir::IntegerType::get(&MLIRContainer::context, 128);
+		return mlir::IntegerType::get(MLIRContainer::context, 128);
 	case LogicalTypeId::FLOAT:
-		return mlir::Float32Type::get(&MLIRContainer::context);
+		return mlir::Float32Type::get(MLIRContainer::context);
 	case LogicalTypeId::DOUBLE:
-		return mlir::Float64Type::get(&MLIRContainer::context);
+		return mlir::Float64Type::get(MLIRContainer::context);
 	case LogicalTypeId::VARCHAR:
-		return lingodb::compiler::dialect::db::StringType::get(&MLIRContainer::context);
+		return lingodb::compiler::dialect::db::StringType::get(MLIRContainer::context);
 	default:
 		throw InternalException("Unsupported type for MLIR conversion");
 	}
@@ -60,7 +60,7 @@ mlir::Type convertDuckDBTypeToMLIRType(const LogicalType &type) {
 
 mlir::Type convertDuckDBTypeToNullableType(const LogicalType &type) {
 	auto baseType = convertDuckDBTypeToMLIRType(type);
-	return lingodb::compiler::dialect::db::NullableType::get(&MLIRContainer::context, baseType);
+	return lingodb::compiler::dialect::db::NullableType::get(MLIRContainer::context, baseType);
 }
 
 LogicalGet::LogicalGet() : LogicalOperator(LogicalOperatorType::LOGICAL_GET) {
@@ -72,7 +72,7 @@ void LogicalGet::Walk(ClientContext &context) {
 		const string table_name = "demo_table";
 
 		auto &builder = duckdb::MLIRContainer::builder;
-		auto loc = builder.getUnknownLoc();
+		auto loc = builder->getUnknownLoc();
 		auto &module = duckdb::MLIRContainer::moduleOp;
 		std::string scopeName = table_name;
 		std::vector<mlir::NamedAttribute> columns;
@@ -85,20 +85,20 @@ void LogicalGet::Walk(ClientContext &context) {
 		std::vector<mlir::Attribute> names;
 		std::vector<mlir::Attribute> attrs;
 		llvm::SmallVector<lingodb::compiler::dialect::subop::Member> members;
-		auto &memberManager = builder.getContext()
+		auto &memberManager = builder->getContext()
 		                          ->getLoadedDialect<lingodb::compiler::dialect::subop::SubOperatorDialect>()
 		                          ->getMemberManager();
-		builder.setInsertionPointToStart(module.getBody());
+		builder->setInsertionPointToStart(module.getBody());
 		mlir::Block *queryBlock = new mlir::Block();
 		mlir::Type localTableType;
 		std::optional<mlir::Value> queryOpResult;
 		{
-			mlir::OpBuilder::InsertionGuard guard(builder);
-			builder.setInsertionPointToStart(queryBlock);
+			mlir::OpBuilder::InsertionGuard guard(*builder);
+			builder->setInsertionPointToStart(queryBlock);
 			mlir::Block *block = new mlir::Block();
 			{
-				mlir::OpBuilder::InsertionGuard guard(builder);
-				builder.setInsertionPointToStart(block);
+				mlir::OpBuilder::InsertionGuard guard(*builder);
+				builder->setInsertionPointToStart(block);
 				lingodb::compiler::dialect::tuples::ColumnManager &attrManager =
 				    module.getContext()
 				        ->getLoadedDialect<lingodb::compiler::dialect::tuples::TupleStreamDialect>()
@@ -106,48 +106,66 @@ void LogicalGet::Walk(ClientContext &context) {
 
 				for (auto &col : column_ids) {
 					auto colName = GetColumnName(col);
-					names.push_back(builder.getStringAttr(colName));
-					colMemberNames.push_back(builder.getStringAttr(colName));
+					names.push_back(builder->getStringAttr(colName));
+					colMemberNames.push_back(builder->getStringAttr(colName));
 					auto attrDef = attrManager.createDef(scopeName, colName);
 					auto colType = convertDuckDBTypeToNullableType(GetColumnType(col));
 					attrDef.getColumn().type = colType;
 					attrs.push_back(attrManager.createRef(&attrDef.getColumn()));
 					colMemberTypes.push_back(mlir::TypeAttr::get(colType));
-					columns.push_back(builder.getNamedAttr(colName, attrDef));
+					columns.push_back(builder->getNamedAttr(colName, attrDef));
 					translationContext.mapAttribute(scope, colName, &attrDef.getColumn());
 					translationContext.mapAttribute(scope, table_name + "." + colName, &attrDef.getColumn());
 					auto colMemberName = memberManager.createMember(colName, colType);
 					members.push_back(colMemberName);
 				}
-				mlir::Value baseTableOp = builder.create<lingodb::compiler::dialect::relalg::BaseTableOp>(
-				    builder.getUnknownLoc(),
-				    lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext()), table_name,
-				    builder.getDictionaryAttr(columns));
+				mlir::Value baseTableOp = builder->create<lingodb::compiler::dialect::relalg::BaseTableOp>(
+				    builder->getUnknownLoc(),
+				    lingodb::compiler::dialect::tuples::TupleStreamType::get(builder->getContext()), table_name,
+				    builder->getDictionaryAttr(columns));
 
 				localTableType = lingodb::compiler::dialect::subop::LocalTableType::get(
-				    builder.getContext(),
-				    lingodb::compiler::dialect::subop::StateMembersAttr::get(builder.getContext(), members),
-				    builder.getArrayAttr(names));
+				    builder->getContext(),
+				    lingodb::compiler::dialect::subop::StateMembersAttr::get(builder->getContext(), members),
+				    builder->getArrayAttr(names));
 
-				mlir::Value result = builder.create<lingodb::compiler::dialect::relalg::MaterializeOp>(
-				    builder.getUnknownLoc(), localTableType, baseTableOp, builder.getArrayAttr(attrs),
-				    builder.getArrayAttr(names));
-				builder.create<lingodb::compiler::dialect::relalg::QueryReturnOp>(builder.getUnknownLoc(), result);
+				mlir::Value result = builder->create<lingodb::compiler::dialect::relalg::MaterializeOp>(
+				    builder->getUnknownLoc(), localTableType, baseTableOp, builder->getArrayAttr(attrs),
+				    builder->getArrayAttr(names));
+				builder->create<lingodb::compiler::dialect::relalg::QueryReturnOp>(builder->getUnknownLoc(), result);
 			}
-			auto queryOp = builder.create<lingodb::compiler::dialect::relalg::QueryOp>(
-			    builder.getUnknownLoc(), mlir::TypeRange {localTableType}, mlir::ValueRange {});
+			auto queryOp = builder->create<lingodb::compiler::dialect::relalg::QueryOp>(
+			    builder->getUnknownLoc(), mlir::TypeRange {localTableType}, mlir::ValueRange {});
 			queryOp.getQueryOps().getBlocks().clear();
 			queryOp.getQueryOps().push_back(block);
 			queryOpResult = queryOp.getResults()[0];
-			builder.create<lingodb::compiler::dialect::subop::SetResultOp>(builder.getUnknownLoc(), 0,
-			                                                               queryOpResult.value());
-			builder.create<mlir::func::ReturnOp>(builder.getUnknownLoc());
+			builder->create<lingodb::compiler::dialect::subop::SetResultOp>(builder->getUnknownLoc(), 0,
+			                                                                queryOpResult.value());
+			builder->create<mlir::func::ReturnOp>(builder->getUnknownLoc());
 		}
 
 		mlir::func::FuncOp funcOp =
-		    builder.create<mlir::func::FuncOp>(builder.getUnknownLoc(), "main", builder.getFunctionType({}, {}));
+		    builder->create<mlir::func::FuncOp>(builder->getUnknownLoc(), "main", builder->getFunctionType({}, {}));
 		funcOp.getBody().push_back(queryBlock);
+
+		std::cout << "Dumping MLIR module now :: \n";
 		MLIRContainer::print();
+
+		std::string mlirStringDump;
+		{
+			llvm::raw_string_ostream os(mlirStringDump);
+			mlir::OpPrintingFlags printFlags;
+			printFlags.elideLargeElementsAttrs();
+			printFlags.printGenericOpForm();
+			module.print(os, printFlags);
+		}
+		std::cout << "MLIR Module as string :: \n";
+		std::cout << mlirStringDump << "\n";
+
+		MLIRContainer::runMLIR(mlirStringDump);
+
+		std::cout << "MLIR execution finished\n";
+		std::cout.flush();
 	} else {
 		auto table_name = table_catalog ? table_catalog->name : "<unknown table>";
 
