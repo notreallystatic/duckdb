@@ -22,7 +22,7 @@
 
 namespace duckdb {
 
-void MLIRContainer::runMLIR(std::string input_mlir) {
+void runMLIR() {
 	std::cout << "Running MLIR  module now\n";
 	std::cout.flush();
 
@@ -41,7 +41,7 @@ void MLIRContainer::runMLIR(std::string input_mlir) {
 
 	auto scheduler = lingodb::scheduler::startScheduler();
 	auto executer = lingodb::execution::QueryExecuter::createDefaultExecuter(std::move(queryExecutionConfig), *session);
-	executer->fromData(input_mlir);
+	executer->fromGlobalContext(true);
 	lingodb::scheduler::awaitEntryTask(std::make_unique<lingodb::execution::QueryExecutionTask>(std::move(executer)));
 }
 
@@ -98,6 +98,7 @@ const lingodb::compiler::dialect::tuples::Column *MLIRTranslationContext::getAtt
 	}
 	return res;
 }
+
 TupleScope MLIRTranslationContext::createTupleScope() {
 	return TupleScope(this);
 }
@@ -141,83 +142,5 @@ void MLIRTranslationContext::replace(ResolverScope &scope, const lingodb::compil
 		mapAttribute(scope, s, col2);
 	}
 }
-
-MLIRContainer::MLIRContainer() {
-}
-
-mlir::MLIRContext *MLIRContainer::context = new mlir::MLIRContext();
-mlir::DialectRegistry *MLIRContainer::registry = new mlir::DialectRegistry();
-mlir::OpBuilder *MLIRContainer::builder = new mlir::OpBuilder(context);
-mlir::ModuleOp MLIRContainer::moduleOp;
-mlir::OpPrintingFlags *MLIRContainer::flags = new mlir::OpPrintingFlags();
-
-void MLIRContainer::init() {
-	registry->insert<mlir::BuiltinDialect>();
-	registry->insert<lingodb::compiler::dialect::relalg::RelAlgDialect>();
-	registry->insert<lingodb::compiler::dialect::subop::SubOperatorDialect>();
-	registry->insert<lingodb::compiler::dialect::tuples::TupleStreamDialect>();
-	registry->insert<lingodb::compiler::dialect::db::DBDialect>();
-	registry->insert<mlir::func::FuncDialect>();
-	registry->insert<mlir::arith::ArithDialect>();
-
-	registry->insert<mlir::memref::MemRefDialect>();
-	registry->insert<lingodb::compiler::dialect::util::UtilDialect>();
-	registry->insert<mlir::scf::SCFDialect>();
-	registry->insert<mlir::LLVM::LLVMDialect>();
-	context->appendDialectRegistry(*registry);
-	context->loadAllAvailableDialects();
-	context->loadDialect<lingodb::compiler::dialect::relalg::RelAlgDialect>();
-
-	// builder = mlir::OpBuilder(&context);
-	moduleOp = builder->create<mlir::ModuleOp>(builder->getUnknownLoc());
-
-	builder->setInsertionPointToStart(moduleOp.getBody());
-	std::cout << "dumping module :: \n";
-	moduleOp->dump();
-}
-
-void MLIRContainer::createMainFuncBlock() {
-	auto *queryBlock = new mlir::Block();
-	mlir::func::FuncOp funcOp =
-	    builder->create<mlir::func::FuncOp>(builder->getUnknownLoc(), "main", builder->getFunctionType({}, {}));
-	funcOp.getBody().push_back(queryBlock);
-}
-
-void MLIRContainer::print() {
-	std::cout << "MLIR so far :: \n";
-	flags->assumeVerified();
-	moduleOp.dump();
-	// moduleOp.print(llvm::outs(), flags);
-}
-
-// mlir::Type convertDuckDBTypeToMLIRType(const LogicalType &type) {
-// 	switch (type.id()) {
-// 	case LogicalTypeId::BOOLEAN:
-// 		return mlir::IntegerType::get(&MLIRContainer::context, 1);
-// 	case LogicalTypeId::TINYINT:
-// 		return mlir::IntegerType::get(&MLIRContainer::context, 8);
-// 	case LogicalTypeId::SMALLINT:
-// 		return mlir::IntegerType::get(&MLIRContainer::context, 16);
-// 	case LogicalTypeId::INTEGER:
-// 		return mlir::IntegerType::get(&MLIRContainer::context, 32);
-// 	case LogicalTypeId::BIGINT:
-// 		return mlir::IntegerType::get(&MLIRContainer::context, 64);
-// 	case LogicalTypeId::HUGEINT:
-// 		return mlir::IntegerType::get(&MLIRContainer::context, 128);
-// 	case LogicalTypeId::FLOAT:
-// 		return mlir::Float32Type::get(&MLIRContainer::context);
-// 	case LogicalTypeId::DOUBLE:
-// 		return mlir::Float64Type::get(&MLIRContainer::context);
-// 	case LogicalTypeId::VARCHAR:
-// 		return lingodb::compiler::dialect::db::StringType::get(&MLIRContainer::context);
-// 	default:
-// 		throw InternalException("Unsupported type for MLIR conversion");
-// 	}
-// }
-
-// mlir::Type convertDuckDBTypeToNullableType(const LogicalType &type) {
-// 	auto baseType = convertDuckDBTypeToMLIRType(type);
-// 	return lingodb::compiler::dialect::db::NullableType::get(&MLIRContainer::context, baseType);
-// }
 
 } // namespace duckdb

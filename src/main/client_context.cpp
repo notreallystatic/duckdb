@@ -48,6 +48,8 @@
 
 #include "duckdb/mlir_util/mlir_util.hpp"
 
+#include "lingodb/execution/Frontend.h"
+
 #include <iostream>
 namespace duckdb {
 
@@ -158,7 +160,10 @@ void ClientContext::readCompileConfig() {
 	std::cin >> this->compile_queries;
 	std::cout << "Compile queries set to: " << this->compile_queries << std::endl;
 	if (this->compile_queries) {
-		auto &mlir_container = MLIRContainer::GetInstance();
+		std::cout << "[ClientContext](readCompileConfig) Initializing MLIR Container" << std::endl;
+		std::cout.flush();
+		// auto &instance = lingodb::execution::MLIRContainer::getInstance();
+		// instance.initialize();
 	}
 }
 
@@ -412,11 +417,13 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 		logical_plan->Verify(*this);
 #endif
 	}
-	MLIRContainer::init();
+	// MLIRContainer::init();
 	// TODO: The logical plan is not optimized. We can compile the query now.
+	// lingodb::execution::MLIRContainer::getInstance().initialize();
 	std::cout << "Logical plan optimized, walking the operator tree now :: \n";
 	logical_plan->Walk(*this);
-	MLIRContainer::print();
+	// auto mlir_container = lingodb::execution::MLIRContainer::getInstance();
+	// mlir_container.print();
 
 	// Convert the logical query plan into a physical query plan.
 	profiler.StartPhase(MetricsType::PHYSICAL_PLANNER);

@@ -26,6 +26,8 @@ namespace duckdb {
 struct DefineScope;
 struct TupleScope;
 
+void runMLIR();
+
 struct MLIRStringInfo {
 	static bool isEqual(std::string a, std::string b);
 	static std::string getEmptyKey();
@@ -72,33 +74,6 @@ public:
 	bool active;
 	TupleScope(MLIRTranslationContext *context);
 	~TupleScope();
-};
-
-class MLIRContainer {
-private:
-	MLIRContainer();
-	MLIRContainer(const MLIRContainer &) = delete;
-	MLIRContainer &operator=(const MLIRContainer &) = delete;
-
-public:
-	static MLIRContainer &GetInstance() {
-		static MLIRContainer instance;
-		return instance;
-	}
-
-	static mlir::MLIRContext *context;
-	static mlir::DialectRegistry *registry;
-	static mlir::OpBuilder *builder; // Declaration only
-	static mlir::ModuleOp moduleOp;
-	static mlir::OpPrintingFlags *flags;
-
-	static void init();
-	static void print();
-	static void createMainFuncBlock();
-	static void runMLIR(std::string input_mlir);
-
-	// static mlir::Type convertDuckDBTypeToMLIRType(const LogicalType &type);
-	// static mlir::Type convertDuckDBTypeToNullableType(const LogicalType &type);
 };
 
 } // namespace duckdb
