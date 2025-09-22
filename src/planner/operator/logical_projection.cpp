@@ -2,7 +2,16 @@
 
 #include "duckdb/main/config.hpp"
 
+#include <iostream>
+
 namespace duckdb {
+
+void LogicalProjection::Walk(ClientContext &context) {
+	std::cout << "Walking LogicalProjection operator" << std::endl;
+	for (const auto &child : children) {
+		child->Walk(context);
+	}
+}
 
 LogicalProjection::LogicalProjection(idx_t table_index, vector<unique_ptr<Expression>> select_list)
     : LogicalOperator(LogicalOperatorType::LOGICAL_PROJECTION, std::move(select_list)), table_index(table_index) {

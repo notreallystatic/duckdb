@@ -1,0 +1,21 @@
+student_id,name,registered,age,major
+1001,Alice,true,21,Computer Science
+1002,Bob,false,22,Mathematics
+1003,Charlie,true,20,Physics
+1004,David,true,23,Chemistry
+1005,Eva,false,19,Biology
+1006,Frank,true,22,Economics
+1007,Grace,false,21,History
+1008,Hannah,true,20,English
+1009,Ian,true,23,Philosophy
+1010,Julia,false,19,Political Science
+1011,Kevin,true,22,Engineering
+1012,Lisa,true,21,Art
+1013,Mike,false,20,Music
+1014,Nina,true,23,Statistics
+1015,Oscar,false,19,Geography
+1016,Paula,true,22,Law
+1017,Quinn,true,21,Medicine
+1018,Rachel,false,20,Architecture
+1019,Sam,true,23,Anthropology
+1020,Tina,true,19,Environmental Science

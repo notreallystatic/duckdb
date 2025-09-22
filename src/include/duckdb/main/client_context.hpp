@@ -28,7 +28,6 @@
 #include "duckdb/main/table_description.hpp"
 #include "duckdb/planner/expression/bound_parameter_data.hpp"
 #include "duckdb/transaction/transaction_context.hpp"
-
 namespace duckdb {
 
 class Appender;
@@ -88,11 +87,16 @@ public:
 	unique_ptr<ClientData> client_data;
 	//! Data for the currently running transaction
 	TransactionContext transaction;
+	//! Whether to compile queries
+	bool compile_queries = false;
 
 public:
 	MetaTransaction &ActiveTransaction() {
 		return transaction.ActiveTransaction();
 	}
+
+	//! Read whether query compilation should be enabled
+	void readCompileConfig();
 
 	//! Interrupt execution of a query
 	DUCKDB_API void Interrupt();

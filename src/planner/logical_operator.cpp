@@ -14,7 +14,30 @@
 #include "duckdb/planner/operator/logical_join.hpp"
 #include "duckdb/planner/operator/logical_order.hpp"
 
+#include <iostream>
+
 namespace duckdb {
+
+void LogicalOperator::PrintOperatorTree(int depth) {
+	std::string indent = std::string(depth * 4, ' ');
+	std::cout << indent << "type :: " << LogicalOperatorToString(type) << std::endl;
+	std::cout << indent << "Expressions :: ";
+	for (const auto &ex : this->expressions) {
+		std::cout << ex->ToString() << ", ";
+	}
+	std::cout << std::endl;
+
+	for (const auto &child : children) {
+		child->PrintOperatorTree(depth + 1);
+	}
+}
+
+void LogicalOperator::Walk(ClientContext &context) {
+	std::cout << "Walking LogicalOperator of type :: " << LogicalOperatorToString(type) << std::endl;
+	for (const auto &child : children) {
+		child->Walk(context);
+	}
+}
 
 LogicalOperator::LogicalOperator(LogicalOperatorType type)
     : type(type), estimated_cardinality(0), has_estimated_cardinality(false) {

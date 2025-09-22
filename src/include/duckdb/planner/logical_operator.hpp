@@ -44,6 +44,9 @@ public:
 	bool has_estimated_cardinality;
 
 public:
+	virtual void PrintOperatorTree(int depth = 0);
+	//! Traversed the operator tree.
+	virtual void Walk(ClientContext &context);
 	virtual vector<ColumnBinding> GetColumnBindings();
 	static string ColumnBindingsToString(const vector<ColumnBinding> &bindings);
 	void PrintColumnBindings();

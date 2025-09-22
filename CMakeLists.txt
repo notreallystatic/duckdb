@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5...3.29)
+cmake_minimum_required(VERSION 3.13.4)
 
 if(NOT CLANG_TIDY)
   find_package(Python3)
@@ -22,15 +22,210 @@ endif()
 
 project(DuckDB)
 
+set(CMAKE_CXX_STANDARD "20" CACHE STRING "C++ standard to enforce")
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Disable warnings
+if(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /w")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /w")
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -w")
+endif()
+
+include_directories(src/include)
+include_directories(third_party/thrift/thrift)
+include_directories(third_party/thrift)
+include_directories(third_party/snappy)
+include_directories(third_party/brotli/include)
+include_directories(third_party/fsst)
+include_directories(third_party/fmt/include)
+include_directories(third_party/hyperloglog)
+include_directories(third_party/fastpforlib)
+include_directories(third_party/skiplist)
+include_directories(third_party/ska_sort)
+include_directories(third_party/fast_float)
+include_directories(third_party/re2)
+include_directories(third_party/miniz)
+include_directories(third_party/utf8proc/include)
+include_directories(third_party/concurrentqueue)
+include_directories(third_party/pcg)
+include_directories(third_party/pdqsort)
+include_directories(third_party/tdigest)
+include_directories(third_party/mbedtls/include)
+include_directories(third_party/jaro_winkler)
+include_directories(third_party/vergesort)
+include_directories(third_party/yyjson/include)
+include_directories(third_party/zstd/include)
+
+# include_directories(${PROJECT_SOURCE_DIR}/extension/lingodb_ext/include)
+# include_directories(${PROJECT_SOURCE_DIR}/extension/lingodb_ext/vendored)
+
+# --------------- START :: lingodb dependencies ----------------
+
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+# set(CMAKE_CXX_STANDARD 20 CACHE STRING "C++ standard to conform to")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g -DTRACER")
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Silence warning about default label in switch which covers all enumeration values (false positive)
+    add_compile_options(-Wno-covered-switch-default)
+    # Silence warning about dangling assignment in GSL (false positive)
+    add_compile_options(-Wno-dangling-assignment-gsl)
+endif ()
+
+# Define ASAN build type if not already set
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+endif ()
+
+# Add custom ASAN build type
+set(CMAKE_CXX_FLAGS_ASAN "-fsanitize=address -fno-omit-frame-pointer -g -O1 -DASAN_ACTIVE")
+set(CMAKE_C_FLAGS_ASAN "-fsanitize=address -fno-omit-frame-pointer -g -O1 -DASAN_ACTIVE")
+set(CMAKE_EXE_LINKER_FLAGS_ASAN "-fsanitize=address")
+# Apply the flags if the build type is ASAN
+if (CMAKE_BUILD_TYPE STREQUAL "ASAN")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_ASAN}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_ASAN}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_EXE_LINKER_FLAGS_ASAN}")
+endif ()
+
+include(FindZLIB)
+message("Using ZLIB: ${ZLIB_INCLUDE_DIRS}")
+message("Using Python3: ${Python3_EXECUTABLE}")
+
+find_package(Arrow 20 REQUIRED)
+
+option(ENABLE_GPU_BACKEND "enable GPU backend" OFF)
+option(ENABLE_BASELINE_BACKEND "enable tpde baseline backend" OFF)
+# option(ENABLE_TESTS "enable tests" OFF)
+
+
+find_package(Clang 20.1 REQUIRED)
+find_package(LLVM 20.1 REQUIRED)
+message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+set(MLIR_DIR "${LLVM_DIR}/../mlir")
+message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
+find_package(MLIR 20.1 REQUIRED)
+
+set(LLVM_RUNTIME_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/bin)
+set(LLVM_LIBRARY_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/lib)
+set(MLIR_BINARY_DIR ${CMAKE_BINARY_DIR})
+
+list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
+list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
+list(APPEND CMAKE_MODULE_PATH "${CLANG_CMAKE_DIR}")
+include(TableGen)
+include(AddLLVM)
+include(AddMLIR)
+include(AddClang)
+include(HandleLLVMOptions)
+
+
+# Override LLVM's strict flags AFTER HandleLLVMOptions
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    # Remove the problematic flag from CMAKE_CXX_FLAGS
+    string(REPLACE "-Werror=date-time" "-Wno-error=date-time" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    
+    # Your existing overrides
+    add_compile_options(-Wno-covered-switch-default)
+    add_compile_options(-Wno-dangling-assignment-gsl)
+    
+    # Additional overrides for third-party compatibility
+    add_compile_options(-Wno-error=date-time)
+endif()
+
+set("CLANG_VERSION" ${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH})
+include_directories(${ARROW_INCLUDE_DIR})
+
+include_directories(${LLVM_INCLUDE_DIRS})
+include_directories(${MLIR_INCLUDE_DIRS})
+include_directories(${CLANG_INCLUDE_DIRS})
+
+message(STATUS "USING current source dir :: ${CMAKE_CURRENT_SOURCE_DIR}")
+
+link_directories(${CMAKE_BINARY_DIR}/lib) # Added explicitly to solve the linker issue
+link_directories(${LLVM_BUILD_LIBRARY_DIR})
+add_definitions(${LLVM_DEFINITIONS})
+set(LLVM_LINK_COMPONENTS
+        Support
+        Core
+        nativecodegen
+        OrcJIT
+
+      CACHE STRING "LLVM link components"
+)
+if (CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+    set(LLVM_LINK_COMPONENTS ${LLVM_LINK_COMPONENTS} AArch64 CACHE STRING "LLVM link components")
+elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    set(LLVM_LINK_COMPONENTS ${LLVM_LINK_COMPONENTS} X86 CACHE STRING "LLVM link components")
+else ()
+    message(FATAL_ERROR "Unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+endif ()
+
+get_property(dialect_libs GLOBAL PROPERTY MLIR_DIALECT_LIBS)
+get_property(conversion_libs GLOBAL PROPERTY MLIR_CONVERSION_LIBS)
+get_property(translation_libs GLOBAL PROPERTY MLIR_TRANSLATION_LIBS)
+get_property(extension_libs GLOBAL PROPERTY MLIR_EXTENSION_LIBS)
+set(LINGODB_EXTERNAL_LIBS
+    ${dialect_libs}
+    ${extension_libs}
+    ${conversion_libs}
+    ${translation_libs}
+        MLIROptLib
+        MLIRIR
+        MLIRParser
+        MLIRPass
+        MLIRSupport
+        MLIRLLVMToLLVMIRTranslation
+        MLIRTargetLLVMIRExport
+        MLIRAnalysis
+        MLIRCallInterfaces
+        MLIRSideEffectInterfaces
+        MLIRTransforms
+        MLIRMathTransforms
+)
+
+set(LINGODB_INTERNAL_LIBS
+        MLIRRelAlg
+        MLIRTupleStream
+        MLIRSubOperator
+        MLIRUtil
+        MLIRDB
+        MLIRArrow
+        mlir-support
+    utility
+    runtime_funcs_ptr
+    MLIRDBToArrowStd
+    MLIRArrowToStd
+    MLIRelAlgToSubOp
+    MLIRSubOpToControlFlow
+    MLIRUtilToLLVM
+)
+
+set (LIBS
+  ${LINGODB_EXTERNAL_LIBS}
+  ${LINGODB_INTERNAL_LIBS}
+  CACHE STRING "MLIR/LLVM libraries"
+)
+
+# --------------- END :: lingodb dependencies ----------------
+
+include_directories(lingodb_ext/include)
+add_subdirectory(lingodb_ext)
+
+include_directories(${CMAKE_BINARY_DIR}/lingodb_ext/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lingodb_ext/vendored)
+
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+
 find_package(Threads REQUIRED)
 
 set(DUCKDB_MODULE_BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(CMAKE_CXX_STANDARD "11" CACHE STRING "C++ standard to enforce")
-
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_VERBOSE_MAKEFILE OFF)
@@ -46,6 +241,7 @@ else()
     set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
   endif()
 endif()
+
 
 # Determine install paths
 # default to gnu standard installation directories (lib, bin, include)
@@ -1311,6 +1507,7 @@ foreach(EXT_NAME IN LISTS DUCKDB_EXTENSION_NAMES)
   endif()
 endforeach()
 
+
 if (BUILD_MAIN_DUCKDB_LIBRARY)
   add_subdirectory(src)
   add_subdirectory(tools)
@@ -1493,3 +1690,7 @@ if(EXISTS ${CMAKE_CONFIG_TEMPLATE} AND EXISTS ${CMAKE_CONFIG_VERSION_TEMPLATE})
           "${PROJECT_BINARY_DIR}/DuckDBConfigVersion.cmake"
     DESTINATION "${INSTALL_CMAKE_DIR}")
 endif()
+
+
+target_link_libraries(duckdb PRIVATE lingodb_ext ${LIBS})
+

@@ -21,6 +21,9 @@
 # Core files
 #core
 
+# log files
+*.log
+
 #==============================================================================#
 # Explicit files to ignore (only matches one).
 #==============================================================================#
@@ -74,6 +77,8 @@ m4/lt~obsolete.m4
 #==============================================================================#
 #m4/
 build/
+build-*/
+build_*/
 duckdb_benchmark_data/
 #*.m4
 *.o
@@ -358,3 +363,5 @@ extension_external
 
 test/sql/pragma/output.json
 tools/pythonpkg/duckdb_build/
+
+build*/

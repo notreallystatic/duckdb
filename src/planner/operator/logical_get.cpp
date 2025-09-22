@@ -10,10 +10,170 @@
 #include "duckdb/common/serializer/serializer.hpp"
 #include "duckdb/common/serializer/deserializer.hpp"
 #include "duckdb/parser/tableref/table_function_ref.hpp"
+#include "duckdb/main/client_context.hpp"
+
+#include <iostream>
+
+#include "lingodb/compiler/Dialect/DB/IR/DBDialect.h"
+#include "lingodb/compiler/Dialect/RelAlg/IR/RelAlgDialect.h"
+#include "lingodb/compiler/Dialect/SubOperator/SubOperatorDialect.h"
+#include "lingodb/compiler/Dialect/SubOperator/SubOperatorOps.h"
+#include "lingodb/compiler/Dialect/TupleStream/TupleStreamDialect.h"
+#include "lingodb/compiler/Dialect/util/UtilDialect.h"
+#include "lingodb/compiler/frontend/SQL/Parser.h"
+#include "lingodb/runtime/Session.h"
+
+#include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/Dialect.h"
+
+#include "duckdb/mlir_util/mlir_util.hpp"
+
+#include "lingodb/execution/Frontend.h"
 
 namespace duckdb {
 
+mlir::Type convertDuckDBTypeToMLIRType(const LogicalType &type, mlir::MLIRContext *context) {
+	switch (type.id()) {
+	case LogicalTypeId::BOOLEAN:
+		return mlir::IntegerType::get(context, 1);
+	case LogicalTypeId::TINYINT:
+		return mlir::IntegerType::get(context, 8);
+	case LogicalTypeId::SMALLINT:
+		return mlir::IntegerType::get(context, 16);
+	case LogicalTypeId::INTEGER:
+		return mlir::IntegerType::get(context, 32);
+	case LogicalTypeId::BIGINT:
+		return mlir::IntegerType::get(context, 64);
+	case LogicalTypeId::HUGEINT:
+		return mlir::IntegerType::get(context, 128);
+	case LogicalTypeId::FLOAT:
+		return mlir::Float32Type::get(context);
+	case LogicalTypeId::DOUBLE:
+		return mlir::Float64Type::get(context);
+	case LogicalTypeId::VARCHAR:
+		return lingodb::compiler::dialect::db::StringType::get(context);
+	default:
+		throw InternalException("Unsupported type for MLIR conversion");
+	}
+}
+
+mlir::Type convertDuckDBTypeToNullableType(const LogicalType &type, mlir::MLIRContext *context) {
+	auto baseType = convertDuckDBTypeToMLIRType(type, context);
+	return lingodb::compiler::dialect::db::NullableType::get(context, baseType);
+}
+
 LogicalGet::LogicalGet() : LogicalOperator(LogicalOperatorType::LOGICAL_GET) {
+}
+
+void LogicalGet::Walk(ClientContext &context) {
+	std::cout << "[LogicalGet](Walk) Walking LogicalGet Operator\n";
+	auto table_catalog = GetTable();
+	if (!table_catalog) {
+		const string table_name = "demo_table";
+
+		auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
+
+		mlirContainerInstance.printInfo();
+
+		auto &builder = mlirContainerInstance.getBuilder();
+		auto loc = builder.getUnknownLoc();
+		auto module = mlirContainerInstance.getModuleOp();
+		std::string scopeName = table_name;
+		std::vector<mlir::NamedAttribute> columns;
+		auto &mlirContext = mlirContainerInstance.getContext();
+
+		std::cout << "[LogicalGet](Walk) MLIR Context vars initialized\n";
+		std::cout.flush();
+
+		std::vector<mlir::Attribute> colMemberNames;
+		std::vector<mlir::Attribute> colMemberTypes;
+		std::vector<mlir::Attribute> names;
+		std::vector<mlir::Attribute> attrs;
+		llvm::SmallVector<lingodb::compiler::dialect::subop::Member> members;
+		auto &memberManager = builder.getContext()
+		                          ->getLoadedDialect<lingodb::compiler::dialect::subop::SubOperatorDialect>()
+		                          ->getMemberManager();
+		builder.setInsertionPointToStart(module.getBody());
+		mlir::Block *queryBlock = new mlir::Block();
+		mlir::Type localTableType;
+		std::optional<mlir::Value> queryOpResult;
+		{
+			mlir::OpBuilder::InsertionGuard guard(builder);
+			builder.setInsertionPointToStart(queryBlock);
+			mlir::Block *block = new mlir::Block();
+			{
+				mlir::OpBuilder::InsertionGuard guard(builder);
+				builder.setInsertionPointToStart(block);
+				lingodb::compiler::dialect::tuples::ColumnManager &attrManager =
+				    module.getContext()
+				        ->getLoadedDialect<lingodb::compiler::dialect::tuples::TupleStreamDialect>()
+				        ->getColumnManager();
+
+				for (auto &col : column_ids) {
+					auto colName = GetColumnName(col);
+					names.push_back(builder.getStringAttr(colName));
+					colMemberNames.push_back(builder.getStringAttr(colName));
+					auto attrDef = attrManager.createDef(scopeName, colName);
+					auto colType = convertDuckDBTypeToNullableType(GetColumnType(col), &mlirContext);
+					attrDef.getColumn().type = colType;
+					attrs.push_back(attrManager.createRef(&attrDef.getColumn()));
+					colMemberTypes.push_back(mlir::TypeAttr::get(colType));
+					columns.push_back(builder.getNamedAttr(colName, attrDef));
+					// translationContext.mapAttribute(scope, colName, &attrDef.getColumn());
+					// translationContext.mapAttribute(scope, table_name + "." + colName, &attrDef.getColumn());
+					auto colMemberName = memberManager.createMember(colName, colType);
+					members.push_back(colMemberName);
+				}
+				mlir::Value baseTableOp = builder.create<lingodb::compiler::dialect::relalg::BaseTableOp>(
+				    builder.getUnknownLoc(),
+				    lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext()), table_name,
+				    builder.getDictionaryAttr(columns));
+
+				localTableType = lingodb::compiler::dialect::subop::LocalTableType::get(
+				    builder.getContext(),
+				    lingodb::compiler::dialect::subop::StateMembersAttr::get(builder.getContext(), members),
+				    builder.getArrayAttr(names));
+
+				mlir::Value result = builder.create<lingodb::compiler::dialect::relalg::MaterializeOp>(
+				    builder.getUnknownLoc(), localTableType, baseTableOp, builder.getArrayAttr(attrs),
+				    builder.getArrayAttr(names));
+				builder.create<lingodb::compiler::dialect::relalg::QueryReturnOp>(builder.getUnknownLoc(), result);
+			}
+			auto queryOp = builder.create<lingodb::compiler::dialect::relalg::QueryOp>(
+			    builder.getUnknownLoc(), mlir::TypeRange {localTableType}, mlir::ValueRange {});
+			queryOp.getQueryOps().getBlocks().clear();
+			queryOp.getQueryOps().push_back(block);
+			queryOpResult = queryOp.getResults()[0];
+			builder.create<lingodb::compiler::dialect::subop::SetResultOp>(builder.getUnknownLoc(), 0,
+			                                                               queryOpResult.value());
+			builder.create<mlir::func::ReturnOp>(builder.getUnknownLoc());
+		}
+
+		mlir::func::FuncOp funcOp =
+		    builder.create<mlir::func::FuncOp>(builder.getUnknownLoc(), "main", builder.getFunctionType({}, {}));
+		funcOp.getBody().push_back(queryBlock);
+
+		std::cout << "Dumping MLIR module now :: \n";
+		mlirContainerInstance.print();
+
+		runMLIR();
+
+		std::cout << "MLIR execution finished\n";
+		std::cout.flush();
+	} else {
+		auto table_name = table_catalog ? table_catalog->name : "<unknown table>";
+
+		const auto &column_list = table_catalog->GetColumns();
+
+		for (auto &col : column_list.Logical()) {
+			std::cout << " - " << col.Name() << " (" << col.Type().ToString() << ")" << std::endl;
+		}
+
+		std::cout << "Walking LogicalGet operator" << std::endl;
+	}
 }
 
 LogicalGet::LogicalGet(idx_t table_index, TableFunction function, unique_ptr<FunctionData> bind_data,
