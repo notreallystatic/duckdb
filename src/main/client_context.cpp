@@ -53,6 +53,8 @@
 #include <iostream>
 namespace duckdb {
 
+bool *COMPILE_QUERIES = nullptr;
+
 struct ActiveQueryContext {
 public:
 	//! The query that is currently being executed
@@ -153,18 +155,18 @@ ClientContext::ClientContext(shared_ptr<DatabaseInstance> database)
 	LoggingContext context(LogContextScope::CONNECTION);
 	logger = db->GetLogManager().CreateLogger(context, true);
 	client_data = make_uniq<ClientData>(*this);
+	readCompileConfig();
 }
 
 void ClientContext::readCompileConfig() {
+	if (COMPILE_QUERIES != nullptr) {
+		this->compile_queries = *COMPILE_QUERIES;
+		return;
+	}
 	std::cout << "Should compile queries: 0(no), 1(yes)" << std::endl;
 	std::cin >> this->compile_queries;
+	COMPILE_QUERIES = new bool(this->compile_queries);
 	std::cout << "Compile queries set to: " << this->compile_queries << std::endl;
-	if (this->compile_queries) {
-		std::cout << "[ClientContext](readCompileConfig) Initializing MLIR Container" << std::endl;
-		std::cout.flush();
-		// auto &instance = lingodb::execution::MLIRContainer::getInstance();
-		// instance.initialize();
-	}
 }
 
 ClientContext::~ClientContext() {
@@ -420,8 +422,11 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 	// MLIRContainer::init();
 	// TODO: The logical plan is not optimized. We can compile the query now.
 	// lingodb::execution::MLIRContainer::getInstance().initialize();
-	std::cout << "Logical plan optimized, walking the operator tree now :: \n";
-	logical_plan->Walk(*this);
+	if (this->compile_queries) {
+		std::cout << "Logical plan optimized, walking the operator tree now :: \n";
+		logical_plan->Walk(*this);
+	}
+
 	// auto mlir_container = lingodb::execution::MLIRContainer::getInstance();
 	// mlir_container.print();
 
