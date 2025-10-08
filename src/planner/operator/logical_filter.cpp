@@ -63,7 +63,32 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 		auto &bound_comparison = (BoundComparisonExpression &)*expr;
 		auto left = translateExpression(bound_comparison.left, translationContext, predBuilder);
 		auto right = translateExpression(bound_comparison.right, translationContext, predBuilder);
-		auto dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::gt; // FIXME: Hard coded for now
+		lingodb::compiler::dialect::db::DBCmpPredicate dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::eq;
+		auto comparison_type = expr->GetExpressionType();
+		switch (comparison_type) {
+		case ExpressionType::COMPARE_EQUAL:
+			dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::eq;
+			break;
+		case ExpressionType::COMPARE_NOTEQUAL:
+			dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::neq;
+			break;
+		case ExpressionType::COMPARE_LESSTHAN:
+			dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::lt;
+			break;
+		case ExpressionType::COMPARE_LESSTHANOREQUALTO:
+			dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::lt;
+			break;
+		case ExpressionType::COMPARE_GREATERTHAN:
+			dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::gt;
+			break;
+		case ExpressionType::COMPARE_GREATERTHANOREQUALTO:
+			dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::gte;
+			break;
+		default:
+			std::cout << "[translateExpression] Unhandled comparison type :: "
+			          << ExpressionTypeToString(comparison_type) << std::endl;
+			throw std::runtime_error("Unhandled comparison type");
+		}
 		auto ct = lingodb::compiler::frontend::sql::SQLTypeInference::toCommonBaseTypes(predBuilder, {left, right});
 		return predBuilder.create<lingodb::compiler::dialect::db::CmpOp>(loc, dbPred, ct[0], ct[1]);
 	}
