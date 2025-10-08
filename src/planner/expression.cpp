@@ -7,7 +7,44 @@
 #include "duckdb/planner/expression/list.hpp"
 #include "duckdb/parser/expression_util.hpp"
 
+#include <iostream>
+
 namespace duckdb {
+
+void printExpression(const unique_ptr<Expression> &expression, int depth) {
+	string indent = std::string(depth * 4, ' ');
+
+	std::cout << indent << "Expression Type :: " << ExpressionTypeToString(expression->type) << std::endl;
+	std::cout << indent << "Expression Class :: " << ExpressionClassToString(expression->GetExpressionClass())
+	          << std::endl;
+	switch (expression->GetExpressionClass()) {
+	case ExpressionClass::BOUND_COMPARISON: {
+		auto &bound_comparison = (BoundComparisonExpression &)*expression;
+		std::cout << indent << "Expression Details :: " << expression->ToString() << std::endl;
+		printExpression(bound_comparison.left, depth + 1);
+		printExpression(bound_comparison.right, depth + 1);
+		std::cout << indent << "Left Operand :: " << bound_comparison.left->ToString() << std::endl;
+		std::cout << indent << "Right Operand :: " << bound_comparison.right->ToString() << std::endl;
+		printExpression(bound_comparison.left, depth + 1);
+		printExpression(bound_comparison.right, depth + 1);
+		break;
+	}
+	case ExpressionClass::BOUND_FUNCTION: {
+		auto &bound_function = (BoundFunctionExpression &)*expression;
+		std::cout << indent << "Expression Details :: " << expression->ToString() << std::endl;
+		std::cout << indent << "Function :: " << bound_function.function.ToString() << std::endl;
+		for (auto &child : bound_function.children) {
+			printExpression(child, depth + 1);
+		}
+		break;
+	}
+	default: {
+		std::cout << indent << "Expression Details :: " << expression->ToString() << std::endl;
+		break;
+	}
+	}
+	std::cout << indent << "Expression Alias :: " << expression->alias << std::endl;
+}
 
 Expression::Expression(ExpressionType type, ExpressionClass expression_class, LogicalType return_type)
     : BaseExpression(type, expression_class), return_type(std::move(return_type)) {

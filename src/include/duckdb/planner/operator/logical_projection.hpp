@@ -24,7 +24,6 @@ public:
 	idx_t table_index;
 
 public:
-	void Walk(ClientContext &context) override;
 	vector<ColumnBinding> GetColumnBindings() override;
 	void Serialize(Serializer &serializer) const override;
 	static unique_ptr<LogicalOperator> Deserialize(Deserializer &deserializer);

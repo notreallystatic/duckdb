@@ -51,8 +51,6 @@
 #include "duckdb/logging/log_manager.hpp"
 #include "duckdb/main/settings.hpp"
 
-#include "duckdb/mlir_util/mlir_util.hpp"
-
 #include "lingodb/execution/Frontend.h"
 
 #include <iostream>
@@ -399,9 +397,6 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 
 	auto logical_plan = std::move(logical_planner.plan);
 
-	// TODO: lets print the plan here to traverse the operator tree
-	logical_plan->PrintOperatorTree();
-
 	// extract the result column names from the plan
 	result->properties = logical_planner.properties;
 	result->names = logical_planner.names;
@@ -414,6 +409,7 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 	logical_plan->Verify(*this);
 #endif
 	if (config.enable_optimizer && logical_plan->RequireOptimizer()) {
+		std::cout << "Optimizing the logical plan now :: \n";
 		profiler.StartPhase(MetricsType::ALL_OPTIMIZERS);
 		Optimizer optimizer(*logical_planner.binder, *this);
 		logical_plan = optimizer.Optimize(std::move(logical_plan));
@@ -424,21 +420,21 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 		logical_plan->Verify(*this);
 #endif
 	}
-	// MLIRContainer::init();
-	// TODO: The logical plan is not optimized. We can compile the query now.
-	// lingodb::execution::MLIRContainer::getInstance().initialize();
-	if (this->compile_queries) {
-		std::cout << "Logical plan optimized, walking the operator tree now :: \n";
-		logical_plan->Walk(*this);
-	}
+	logical_plan->Walk(0);
 
-	// auto mlir_container = lingodb::execution::MLIRContainer::getInstance();
-	// mlir_container.print();
+	// The logical plan is not optimized. We can compile the query now.
+	if (compile_queries) {
+		lingodb::execution::MLIRContainer::getInstance();
+		std::cout << "[ClientContext] (CreatePreparedStatementInternal) Compiling the logical plan now :: \n";
+		logical_plan->AddMLIR(*this, logical_plan, 0);
+	}
 
 	// Convert the logical query plan into a physical query plan.
 	profiler.StartPhase(MetricsType::PHYSICAL_PLANNER);
 	PhysicalPlanGenerator physical_planner(*this);
 	result->physical_plan = physical_planner.Plan(std::move(logical_plan));
+	// result->physical_plan->walk();
+	// result->physical_plan.Walk();
 	profiler.EndPhase();
 	D_ASSERT(result->physical_plan);
 	return result;

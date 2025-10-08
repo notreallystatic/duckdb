@@ -17,9 +17,11 @@
 #include "duckdb/planner/logical_operator_visitor.hpp"
 #include "duckdb/common/case_insensitive_map.hpp"
 #include "duckdb/common/insertion_order_preserving_map.hpp"
+#include "duckdb/mlir_util/mlir_util.hpp"
 
 #include <algorithm>
 #include <functional>
+#include <optional>
 
 namespace duckdb {
 
@@ -44,9 +46,13 @@ public:
 	bool has_estimated_cardinality;
 
 public:
-	virtual void PrintOperatorTree(int depth = 0);
-	//! Traversed the operator tree.
-	virtual void Walk(ClientContext &context);
+	//! Print the operator tree, for debugging purposes
+	virtual void Walk(int depth = 0);
+	//! Traverse the operator tree and add the corresponding MLIR code.
+	virtual void AddMLIR(ClientContext &context, unique_ptr<LogicalOperator> &og_tree, int depth = 0);
+	virtual void AddMLIRSpecific(ClientContext &context, LogicalOperatorType operator_to_process,
+	                             unique_ptr<LogicalOperator> &og_tree, MLIRTranslationContext &mlir_context,
+	                             int depth = 0);
 	virtual vector<ColumnBinding> GetColumnBindings();
 	static string ColumnBindingsToString(const vector<ColumnBinding> &bindings);
 	void PrintColumnBindings();

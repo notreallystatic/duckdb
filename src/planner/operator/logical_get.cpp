@@ -29,9 +29,8 @@
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Dialect.h"
 
-#include "duckdb/mlir_util/mlir_util.hpp"
-
 #include "lingodb/execution/Frontend.h"
+#include "duckdb/planner/expression.hpp"
 
 namespace duckdb {
 
@@ -68,30 +67,49 @@ mlir::Type convertDuckDBTypeToNullableType(const LogicalType &type, mlir::MLIRCo
 LogicalGet::LogicalGet() : LogicalOperator(LogicalOperatorType::LOGICAL_GET) {
 }
 
-void LogicalGet::Walk(ClientContext &context) {
-	std::cout << "[LogicalGet](Walk) Walking LogicalGet Operator\n";
+void LogicalGet::Walk(int depth) {
+	string indent = string(depth * 4, ' ');
+	std::cout << indent << "[LogicalGet](Walk) :: " << GetName() << std::endl;
+
+	std::cout << indent << "[LogicalGet](Walk) Table Filters :: " << std::endl;
+	table_filters.print();
+	std::cout << std::endl;
+	std::cout << indent << "[LogicalGet](Walk) Expressions :: " << std::endl;
+
+	for (const auto &ex : expressions) {
+		printExpression(ex, depth + 1);
+	}
+	std::cout << std::endl;
+}
+
+void LogicalGet::AddMLIR(ClientContext &context, unique_ptr<LogicalOperator> &og_tree, int depth) {
+	string indent(depth * 4, ' ');
+	std::cout << indent << "[LogicalGet](AddMLIR) BEGIN \n";
+
 	auto table_catalog = GetTable();
 	if (!table_catalog) {
 		const string table_name = "demo_table";
 
 		auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
+		D_ASSERT(mlirContainerInstance.getContextPtr() != nullptr);
+		D_ASSERT(mlirContainerInstance.getModuleOpPtr() != nullptr);
+
+		MLIRTranslationContext translationContext;
+		auto translationScope = translationContext.createResolverScope();
 
 		mlirContainerInstance.printInfo();
 
 		auto &builder = mlirContainerInstance.getBuilder();
+
 		auto loc = builder.getUnknownLoc();
 		auto module = mlirContainerInstance.getModuleOp();
 		std::string scopeName = table_name;
 		std::vector<mlir::NamedAttribute> columns;
 		auto &mlirContext = mlirContainerInstance.getContext();
 
-		std::cout << "[LogicalGet](Walk) MLIR Context vars initialized\n";
-		std::cout.flush();
-
 		std::vector<mlir::Attribute> colMemberNames;
 		std::vector<mlir::Attribute> colMemberTypes;
 		std::vector<mlir::Attribute> names;
-		std::vector<mlir::Attribute> attrs;
 		llvm::SmallVector<lingodb::compiler::dialect::subop::Member> members;
 		auto &memberManager = builder.getContext()
 		                          ->getLoadedDialect<lingodb::compiler::dialect::subop::SubOperatorDialect>()
@@ -100,6 +118,8 @@ void LogicalGet::Walk(ClientContext &context) {
 		mlir::Block *queryBlock = new mlir::Block();
 		mlir::Type localTableType;
 		std::optional<mlir::Value> queryOpResult;
+
+		std::vector<mlir::Attribute> attrs;
 		{
 			mlir::OpBuilder::InsertionGuard guard(builder);
 			builder.setInsertionPointToStart(queryBlock);
@@ -122,15 +142,26 @@ void LogicalGet::Walk(ClientContext &context) {
 					attrs.push_back(attrManager.createRef(&attrDef.getColumn()));
 					colMemberTypes.push_back(mlir::TypeAttr::get(colType));
 					columns.push_back(builder.getNamedAttr(colName, attrDef));
-					// translationContext.mapAttribute(scope, colName, &attrDef.getColumn());
-					// translationContext.mapAttribute(scope, table_name + "." + colName, &attrDef.getColumn());
 					auto colMemberName = memberManager.createMember(colName, colType);
 					members.push_back(colMemberName);
+					translationContext.mapAttribute(translationScope, colName, &attrDef.getColumn());
+					translationContext.mapAttribute(translationScope, table_name + "." + colName, &attrDef.getColumn());
 				}
+				// First we create the base table op.
 				mlir::Value baseTableOp = builder.create<lingodb::compiler::dialect::relalg::BaseTableOp>(
 				    builder.getUnknownLoc(),
 				    lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext()), table_name,
 				    builder.getDictionaryAttr(columns));
+
+				og_tree->AddMLIRSpecific(context, LogicalOperatorType::LOGICAL_FILTER, og_tree, translationContext,
+				                         depth + 1);
+
+				auto sel = builder.create<lingodb::compiler::dialect::relalg::SelectionOp>(
+				    builder.getUnknownLoc(),
+				    lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext()), baseTableOp);
+				sel.getPredicate().push_back(mlirContainerInstance.getPredBlock());
+
+				baseTableOp = sel.getResult();
 
 				localTableType = lingodb::compiler::dialect::subop::LocalTableType::get(
 				    builder.getContext(),
@@ -156,12 +187,12 @@ void LogicalGet::Walk(ClientContext &context) {
 		    builder.create<mlir::func::FuncOp>(builder.getUnknownLoc(), "main", builder.getFunctionType({}, {}));
 		funcOp.getBody().push_back(queryBlock);
 
-		std::cout << "Dumping MLIR module now :: \n";
+		std::cout << indent << "[LogicalGet](AddMLIR) Dumping MLIR module now :: \n";
 		mlirContainerInstance.print();
 
 		runMLIR();
 
-		std::cout << "MLIR execution finished\n";
+		std::cout << indent << "[LogicalGet](AddMLIR) MLIR execution finished\n";
 		std::cout.flush();
 	} else {
 		auto table_name = table_catalog ? table_catalog->name : "<unknown table>";
@@ -169,10 +200,10 @@ void LogicalGet::Walk(ClientContext &context) {
 		const auto &column_list = table_catalog->GetColumns();
 
 		for (auto &col : column_list.Logical()) {
-			std::cout << " - " << col.Name() << " (" << col.Type().ToString() << ")" << std::endl;
+			std::cout << indent << " - " << col.Name() << " (" << col.Type().ToString() << ")" << std::endl;
 		}
 
-		std::cout << "Walking LogicalGet operator" << std::endl;
+		std::cout << indent << "[LogicalGet](AddMLIR) Walking LogicalGet operator" << std::endl;
 	}
 }
 

@@ -13,30 +13,59 @@
 #include "duckdb/planner/operator/logical_filter.hpp"
 #include "duckdb/planner/operator/logical_join.hpp"
 #include "duckdb/planner/operator/logical_order.hpp"
+#include "duckdb/planner/expression.hpp"
 
 #include <iostream>
 
 namespace duckdb {
 
-void LogicalOperator::PrintOperatorTree(int depth) {
+void LogicalOperator::Walk(int depth) {
 	std::string indent = std::string(depth * 4, ' ');
-	std::cout << indent << "type :: " << LogicalOperatorToString(type) << std::endl;
-	std::cout << indent << "Expressions :: ";
+	std::cout << indent << "[LogicalOperator](Walk) type :: " << LogicalOperatorToString(type) << std::endl;
+	std::cout << indent << "[LogicalOperator](Walk) Expressions :: " << std::endl;
+	for (const auto &ex : this->expressions) {
+		printExpression(ex, depth + 1);
+	}
+	std::cout << std::endl;
+	std::cout << indent << "[LogicalOperator](Walk) children length :: " << children.size() << std::endl;
+
+	for (const auto &child : children) {
+		child->Walk(depth + 1);
+	}
+}
+
+void LogicalOperator::AddMLIR(ClientContext &context, unique_ptr<LogicalOperator> &og_tree, int depth) {
+	string indent = std::string(depth * 4, ' ');
+	std::cout << indent << "[LogicalOperator](AddMLIR) :: " << LogicalOperatorToString(type) << std::endl;
+	std::cout << indent << "[LogicalOperator](AddMLIR) Expressions :: ";
 	for (const auto &ex : this->expressions) {
 		std::cout << ex->ToString() << ", ";
 	}
 	std::cout << std::endl;
+	std::cout << indent << "[LogicalOperator](AddMLIR) types :: ";
+	for (const auto &t : this->types) {
+		std::cout << t.ToString() << ", ";
+	}
+	std::cout << std::endl;
 
 	for (const auto &child : children) {
-		child->PrintOperatorTree(depth + 1);
+		child->AddMLIR(context, og_tree, depth + 1);
 	}
 }
 
-void LogicalOperator::Walk(ClientContext &context) {
-	std::cout << "Walking LogicalOperator of type :: " << LogicalOperatorToString(type) << std::endl;
-	for (const auto &child : children) {
-		child->Walk(context);
+void LogicalOperator::AddMLIRSpecific(ClientContext &context, LogicalOperatorType operator_to_process,
+                                      unique_ptr<LogicalOperator> &og_tree, MLIRTranslationContext &mlir_context,
+                                      int depth) {
+	string indent = std::string(depth * 4, ' ');
+	std::cout << indent << "[LogicalOperator](AddMLIRSpecific) :: " << LogicalOperatorToString(type) << std::endl;
+	if (type != operator_to_process) {
+		for (const auto &child : children) {
+			child->AddMLIRSpecific(context, operator_to_process, og_tree, mlir_context, depth);
+		}
+		return;
 	}
+	std::cout << indent << "[LogicalOperator](AddMLIRSpecific) Matched :: " << LogicalOperatorToString(type)
+	          << std::endl;
 }
 
 LogicalOperator::LogicalOperator(LogicalOperatorType type)

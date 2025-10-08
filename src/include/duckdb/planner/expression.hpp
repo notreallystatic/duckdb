@@ -70,4 +70,5 @@ protected:
 	}
 };
 
+void printExpression(const unique_ptr<Expression> &expression, int depth);
 } // namespace duckdb

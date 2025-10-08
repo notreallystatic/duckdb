@@ -5,6 +5,8 @@
 #include "duckdb/planner/filter/null_filter.hpp"
 #include "duckdb/execution/operator/scan/physical_table_scan.hpp"
 
+#include <iostream>
+
 namespace duckdb {
 
 void TableFilterSet::PushFilter(const ColumnIndex &col_idx, unique_ptr<TableFilter> filter) {
@@ -34,6 +36,19 @@ string TableFilter::DebugToString() const {
 void DynamicTableFilterSet::ClearFilters(const PhysicalOperator &op) {
 	lock_guard<mutex> l(lock);
 	filters.erase(op);
+}
+
+void TableFilterSet::print(int depth) {
+	string indent = string(depth * 4, ' ');
+	std::cout << indent << "[TableFilterSet](print) START \n";
+	for (auto &entry : filters) {
+		auto column_idx = entry.first;
+		// Get the column name
+		auto column_name = "c" + std::to_string(column_idx);
+		std::cout << indent << "Column Index: " << entry.first << " Filter: " << entry.second->ToString(column_name)
+		          << std::endl;
+	}
+	std::cout << indent << "[TableFilterSet](print) END \n";
 }
 
 void DynamicTableFilterSet::PushFilter(const PhysicalOperator &op, idx_t column_index, unique_ptr<TableFilter> filter) {

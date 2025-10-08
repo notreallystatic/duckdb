@@ -45,6 +45,8 @@ public:
 	virtual ~PhysicalOperator() {
 	}
 
+	void Walk(int depth = 0);
+
 	//! Deleted copy constructors.
 	PhysicalOperator(const PhysicalOperator &other) = delete;
 	PhysicalOperator &operator=(const PhysicalOperator &) = delete;

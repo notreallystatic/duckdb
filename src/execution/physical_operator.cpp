@@ -14,7 +14,23 @@
 #include "duckdb/storage/buffer/buffer_pool.hpp"
 #include "duckdb/storage/buffer_manager.hpp"
 
+#include <iostream>
+
 namespace duckdb {
+
+void PhysicalOperator::Walk(int depth) {
+	string indent(depth * 4, ' ');
+	std::cout << indent << "[PhysicalOperator](Walk) :: " << GetName() << std::endl;
+	std::cout << indent << "Logical Types :: ";
+	for (auto &type : types) {
+		std::cout << type.ToString() << " ";
+	}
+	std::cout << std::endl;
+	std::cout << indent << "Estimated Cardinality :: " << estimated_cardinality << std::endl;
+	for (auto &child : children) {
+		child.get().Walk(depth + 1);
+	}
+}
 
 PhysicalOperator::PhysicalOperator(PhysicalPlan &physical_plan, PhysicalOperatorType type, vector<LogicalType> types,
                                    idx_t estimated_cardinality)

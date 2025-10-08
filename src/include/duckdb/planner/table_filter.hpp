@@ -87,6 +87,8 @@ public:
 public:
 	void PushFilter(const ColumnIndex &col_idx, unique_ptr<TableFilter> filter);
 
+	void print(int depth = 0);
+
 	bool Equals(TableFilterSet &other) {
 		if (filters.size() != other.filters.size()) {
 			return false;
