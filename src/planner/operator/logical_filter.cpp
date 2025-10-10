@@ -119,6 +119,27 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 			    loc, predBuilder.getI32Type(), predBuilder.getI32IntegerAttr(expressionObj.value.GetValue<int32_t>()));
 			break;
 		}
+		case LogicalTypeId::VARCHAR:
+		case LogicalTypeId::CHAR: {
+			auto strVal = expressionObj.value.GetValue<string>();
+			auto strType = lingodb::compiler::dialect::db::CharType::get(predBuilder.getContext(), strVal.size());
+			return predBuilder.create<lingodb::compiler::dialect::db::ConstantOp>(loc, strType,
+			                                                                      predBuilder.getStringAttr(strVal));
+			break;
+		}
+		case LogicalTypeId::FLOAT: { // TODO: Testing pending
+			string expressionValue = expressionObj.value.ToString();
+			auto floatVal = expressionObj.value.GetValue<float>();
+			// get the integer part and decimal part of the floatVal
+			auto intPart = static_cast<unsigned long>(floatVal);
+			auto decimalPart = floatVal - intPart;
+			// convert the decimal part to an integer by multiplying it with 10^6
+			auto decimalIntPart = static_cast<unsigned long>(decimalPart * 10000000);
+			return predBuilder.create<lingodb::compiler::dialect::db::ConstantOp>(
+			    loc,
+			    lingodb::compiler::dialect::db::DecimalType::get(predBuilder.getContext(), intPart, decimalIntPart),
+			    predBuilder.getStringAttr(expressionValue));
+		}
 		default: {
 			std::cout << "[translateExpression] Unhandled constant type :: " << expressionObj.value.type().ToString()
 			          << std::endl;
@@ -126,6 +147,32 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 		}
 		}
 		break;
+	}
+	case ExpressionClass::BOUND_OPERATOR: {
+		auto &bound_op = (BoundOperatorExpression &)*expr;
+		if (bound_op.children.size() != 1) {
+			std::cout << "[translateExpression] BOUND_OPERATOR with unknown children size :: "
+			          << ExpressionTypeToString(expr->GetExpressionType()) << std::endl;
+			throw std::runtime_error("BOUND_OPERATOR with unhandled children size");
+		}
+		auto exprResult = translateExpression(bound_op.children[0], translationContext, predBuilder);
+		if (mlir::isa<lingodb::compiler::dialect::db::NullableType>(exprResult.getType())) {
+			auto isNull = predBuilder.create<lingodb::compiler::dialect::db::IsNullOp>(loc, exprResult);
+			if (bound_op.type == ExpressionType::OPERATOR_IS_NOT_NULL) {
+				return predBuilder.create<lingodb::compiler::dialect::db::NotOp>(loc, isNull);
+			} else if (bound_op.type == ExpressionType::OPERATOR_IS_NULL) {
+				return isNull;
+			} else {
+				std::cout << "[translateExpression] Unhandled bound operator type :: "
+				          << ExpressionTypeToString(bound_op.type) << std::endl;
+				throw std::runtime_error("Unhandled bound operator type");
+			}
+		} else {
+			return predBuilder.create<lingodb::compiler::dialect::db::ConstantOp>(
+			    loc, predBuilder.getI1Type(),
+			    predBuilder.getIntegerAttr(predBuilder.getI1Type(),
+			                               bound_op.type == ExpressionType::OPERATOR_IS_NOT_NULL));
+		}
 	}
 	default: {
 		std::cout << "[translateExpression] Unhandled expression class :: " << ExpressionClassToString(expressionClass)

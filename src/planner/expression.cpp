@@ -38,6 +38,16 @@ void printExpression(const unique_ptr<Expression> &expression, int depth) {
 		}
 		break;
 	}
+	case ExpressionClass::BOUND_OPERATOR: {
+		auto &bound_op = (BoundOperatorExpression &)*expression;
+		std::cout << indent << "Operator :: " << ExpressionTypeToString(bound_op.type) << std::endl;
+		std::cout << indent << "Expression Details :: " << expression->ToString() << std::endl;
+
+		for (auto &child : bound_op.children) {
+			printExpression(child, depth + 1);
+		}
+		break;
+	}
 	default: {
 		std::cout << indent << "Expression Details :: " << expression->ToString() << std::endl;
 		break;
