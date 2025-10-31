@@ -424,7 +424,9 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 
 	// The logical plan is not optimized. We can compile the query now.
 	if (compile_queries) {
-		lingodb::execution::MLIRContainer::getInstance();
+		auto &mlirContainer = lingodb::execution::MLIRContainer::getInstance();
+		// lingodb::execution::MLIRContainer::reset();
+
 		std::cout << "[ClientContext] (CreatePreparedStatementInternal) Compiling the logical plan now :: \n";
 		logical_plan->AddMLIR(*this, logical_plan, 0);
 	}

@@ -152,16 +152,55 @@ void LogicalGet::AddMLIR(ClientContext &context, unique_ptr<LogicalOperator> &og
 				    builder.getUnknownLoc(),
 				    lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext()), table_name,
 				    builder.getDictionaryAttr(columns));
+				mlirContainerInstance.baseTableOp = baseTableOp;
 
 				og_tree->AddMLIRSpecific(context, LogicalOperatorType::LOGICAL_FILTER, og_tree, translationContext,
 				                         depth + 1);
+				if (mlirContainerInstance.getPredBlock() != nullptr) {
+					std::cout << indent << "[LogicalGet](AddMLIR) Adding SelectionOp for filter \n";
+					auto sel = builder.create<lingodb::compiler::dialect::relalg::SelectionOp>(
+					    builder.getUnknownLoc(),
+					    lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext()), baseTableOp);
+					sel.getPredicate().push_back(mlirContainerInstance.getPredBlock());
+					baseTableOp = sel.getResult();
+				}
 
-				auto sel = builder.create<lingodb::compiler::dialect::relalg::SelectionOp>(
-				    builder.getUnknownLoc(),
-				    lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext()), baseTableOp);
-				sel.getPredicate().push_back(mlirContainerInstance.getPredBlock());
+				std::cout << indent << "[LogicalGet](AddMLIR) Current MLIR Value after Filter :: ";
+				std::cout.flush();
+				baseTableOp.print(llvm::outs());
+				std::cout << std::endl;
+				// We need to put the aggregations here.
+				og_tree->AddMLIRSpecific(context, LogicalOperatorType::LOGICAL_AGGREGATE_AND_GROUP_BY, og_tree,
+				                         translationContext, depth + 1);
+				if (mlirContainerInstance.aggrOp) {
+					std::cout << indent << "[LogicalGet](AddMLIR) Adding AggrOp \n";
+					baseTableOp = mlirContainerInstance.aggrOp;
+				}
+				// Print the mlir value so far
+				std::cout << indent << "[LogicalGet](AddMLIR) Current MLIR Value after Filter :: ";
+				std::cout.flush();
+				baseTableOp.print(llvm::outs());
+				std::cout << std::endl;
 
-				baseTableOp = sel.getResult();
+				// update the mapping in translation context.
+				auto &columnMapping = mlirContainerInstance.getColumnMapping();
+				if (columnMapping.size() != 0) {
+					names.clear();
+					members.clear();
+					attrs.clear();
+					for (auto [colName, columnData] : columnMapping) {
+						// Required by subop: members, names
+						names.push_back(builder.getStringAttr(colName));
+						auto colMemberName = memberManager.createMember(colName, columnData->type);
+						auto attrDef = attrManager.createDef("aggr0", colName); // FIXME: Hardcoded scope name
+						attrDef.getColumn().type = columnData->type;
+						attrs.push_back(attrManager.createRef(&attrDef.getColumn()));
+						members.push_back(colMemberName);
+						translationContext.mapAttribute(translationScope, colName, columnData);
+					}
+				}
+
+				// Now we create the materialize op.
 
 				localTableType = lingodb::compiler::dialect::subop::LocalTableType::get(
 				    builder.getContext(),

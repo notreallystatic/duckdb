@@ -27,12 +27,15 @@
 
 namespace duckdb {
 
+bool LogicalFilter::found_conjunction_and = false; // Initialize static variable
+
 mlir::Value translateExpression(unique_ptr<Expression> &expr, mlir::OpBuilder &predBuilder);
 void AddMLIRForExpression(unique_ptr<Expression> &expr, MLIRTranslationContext &translationContext, int depth);
 
 void LogicalFilter::AddMLIRSpecific(ClientContext &context, LogicalOperatorType operator_to_process,
                                     unique_ptr<LogicalOperator> &og_tree, MLIRTranslationContext &translationContext,
                                     int depth) {
+	std::cout << "AND conjunction status :: " << (LogicalFilter::found_conjunction_and ? "true" : "false") << std::endl;
 	string indent = string(depth * 4, ' ');
 	std::cout << indent << "[LogicalFilter](AddMLIRSpecific) :: " << LogicalOperatorToString(type) << std::endl;
 	for (auto &expr : this->expressions) {
@@ -59,6 +62,29 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 	          << ExpressionClassToString(expressionClass) << std::endl;
 
 	switch (expressionClass) {
+	case ExpressionClass::BOUND_CONJUNCTION: {
+		auto &bound_conjunction = (BoundConjunctionExpression &)*expr;
+		std::cout << "[translateExpression] BOUND_CONJUNCTION with children size :: "
+		          << bound_conjunction.children.size() << std::endl;
+		std::cout << "[translateExpression] BOUND_CONJUNCTION type :: "
+		          << ExpressionTypeToString(bound_conjunction.type) << std::endl;
+		std::vector<mlir::Value> childExprs;
+		for (auto &child : bound_conjunction.children) {
+			childExprs.push_back(translateExpression(child, translationContext, predBuilder));
+		}
+		switch (bound_conjunction.type) {
+		case ExpressionType::CONJUNCTION_AND: {
+			return predBuilder.create<lingodb::compiler::dialect::db::AndOp>(loc, childExprs);
+		case ExpressionType::CONJUNCTION_OR: {
+			return predBuilder.create<lingodb::compiler::dialect::db::OrOp>(loc, childExprs);
+		}
+		default:
+			std::cout << "[translateExpression] Unhandled conjunction type :: "
+			          << ExpressionTypeToString(bound_conjunction.type) << std::endl;
+			throw std::runtime_error("Unhandled conjunction type");
+		} break;
+		}
+	}
 	case ExpressionClass::BOUND_COMPARISON: {
 		auto &bound_comparison = (BoundComparisonExpression &)*expr;
 		auto left = translateExpression(bound_comparison.left, translationContext, predBuilder);
@@ -225,7 +251,7 @@ void LogicalFilter::Walk(int depth) {
 
 LogicalFilter::LogicalFilter(unique_ptr<Expression> expression) : LogicalOperator(LogicalOperatorType::LOGICAL_FILTER) {
 	expressions.push_back(std::move(expression));
-	SplitPredicates(expressions);
+	LogicalFilter::found_conjunction_and = SplitPredicates(expressions);
 }
 
 LogicalFilter::LogicalFilter() : LogicalOperator(LogicalOperatorType::LOGICAL_FILTER) {
@@ -243,23 +269,24 @@ vector<ColumnBinding> LogicalFilter::GetColumnBindings() {
 // These are the predicates that are safe to push down because all of them MUST
 // be true
 bool LogicalFilter::SplitPredicates(vector<unique_ptr<Expression>> &expressions) {
-	bool found_conjunction = false;
-	for (idx_t i = 0; i < expressions.size(); i++) {
-		if (expressions[i]->GetExpressionType() == ExpressionType::CONJUNCTION_AND) {
-			auto &conjunction = expressions[i]->Cast<BoundConjunctionExpression>();
-			found_conjunction = true;
-			// AND expression, append the other children
-			for (idx_t k = 1; k < conjunction.children.size(); k++) {
-				expressions.push_back(std::move(conjunction.children[k]));
-			}
-			// replace this expression with the first child of the conjunction
-			expressions[i] = std::move(conjunction.children[0]);
-			// we move back by one so the right child is checked again
-			// in case it is an AND expression as well
-			i--;
-		}
-	}
-	return found_conjunction;
+	return false;
+	// bool found_conjunction = false;
+	// for (idx_t i = 0; i < expressions.size(); i++) {
+	// 	if (expressions[i]->GetExpressionType() == ExpressionType::CONJUNCTION_AND) {
+	// 		auto &conjunction = expressions[i]->Cast<BoundConjunctionExpression>();
+	// 		found_conjunction = true;
+	// 		// AND expression, append the other children
+	// 		for (idx_t k = 1; k < conjunction.children.size(); k++) {
+	// 			expressions.push_back(std::move(conjunction.children[k]));
+	// 		}
+	// 		// replace this expression with the first child of the conjunction
+	// 		expressions[i] = std::move(conjunction.children[0]);
+	// 		// we move back by one so the right child is checked again
+	// 		// in case it is an AND expression as well
+	// 		i--;
+	// 	}
+	// }
+	// return LogicalFilter::found_conjunction_and = found_conjunction;
 }
 
 } // namespace duckdb

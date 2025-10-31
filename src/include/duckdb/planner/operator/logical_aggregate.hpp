@@ -11,6 +11,7 @@
 #include "duckdb/common/enums/tuple_data_layout_enums.hpp"
 #include "duckdb/planner/logical_operator.hpp"
 #include "duckdb/planner/column_binding.hpp"
+#include "duckdb/planner/expression/bound_aggregate_expression.hpp"
 #include "duckdb/storage/statistics/base_statistics.hpp"
 #include "duckdb/parser/group_by_node.hpp"
 
@@ -43,6 +44,10 @@ public:
 	TupleDataValidityType distinct_validity;
 
 public:
+	void AddMLIRSpecific(ClientContext &context, LogicalOperatorType operator_to_process,
+	                     unique_ptr<LogicalOperator> &og_tree, MLIRTranslationContext &mlir_context,
+	                     int depth = 0) override;
+	void Walk(int depth = 0) override;
 	InsertionOrderPreservingMap<string> ParamsToString() const override;
 
 	vector<ColumnBinding> GetColumnBindings() override;

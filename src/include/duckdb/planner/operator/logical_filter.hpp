@@ -22,6 +22,8 @@ public:
 	explicit LogicalFilter(unique_ptr<Expression> expression);
 	LogicalFilter();
 
+	static bool found_conjunction_and;
+
 	vector<idx_t> projection_map;
 
 public:
@@ -38,7 +40,7 @@ public:
 	static unique_ptr<LogicalOperator> Deserialize(Deserializer &deserializer);
 
 	bool SplitPredicates() {
-		return SplitPredicates(expressions);
+		return found_conjunction_and = SplitPredicates(expressions);
 	}
 	//! Splits up the predicates of the LogicalFilter into a set of predicates
 	//! separated by AND Returns whether or not any splits were made
