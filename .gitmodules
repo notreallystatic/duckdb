@@ -1,0 +1,3 @@
+[submodule "lingodb_ext"]
+	path = lingodb_ext
+	url = https://github.com/notreallystatic/lingodb_ext
