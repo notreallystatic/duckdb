@@ -97,7 +97,7 @@ void LogicalGet::AddMLIR(ClientContext &context, unique_ptr<LogicalOperator> &og
 		MLIRTranslationContext translationContext;
 		auto translationScope = translationContext.createResolverScope();
 
-		mlirContainerInstance.printInfo();
+		// mlirContainerInstance.printInfo();
 
 		auto &builder = mlirContainerInstance.getBuilder();
 
