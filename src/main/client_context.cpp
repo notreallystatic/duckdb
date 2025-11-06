@@ -424,8 +424,8 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 
 	// The logical plan is not optimized. We can compile the query now.
 	if (compile_queries) {
-		// lingodb::execution::MLIRContainer::reset();
-		auto &mlirContainer = lingodb::execution::MLIRContainer::getInstance();
+		lingodb::execution::MLIRContainer::reset();
+		// auto &mlirContainer = lingodb::execution::MLIRContainer::getInstance();
 
 		// lingodb::execution::MLIRContainer::reset();
 
