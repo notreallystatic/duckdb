@@ -22,6 +22,27 @@
 
 namespace duckdb {
 
+class ConciseTimingPrinter : public lingodb::execution::TimingProcessor {
+	double compilation;
+	double execution;
+
+public:
+	ConciseTimingPrinter() : compilation(0.0), execution(0.0) {
+	}
+	void addTiming(const std::unordered_map<std::string, double> &timing) override {
+		for (auto [name, t] : timing) {
+			if (name == "executionTime") {
+				execution = t;
+			} else {
+				compilation += t;
+			}
+		}
+	}
+	void process() override {
+		std::cerr << " compilation: " << compilation << " [ms] execution: " << execution << " [ms]" << std::endl;
+	}
+};
+
 void runMLIR() {
 	std::cout << "Running MLIR  module now\n";
 	std::cout.flush();
@@ -37,7 +58,7 @@ void runMLIR() {
 	std::cout << "Execution mode: " << static_cast<int>(runMode) << "\n";
 	std::cout.flush();
 	auto queryExecutionConfig = lingodb::execution::createQueryExecutionConfig(runMode, false);
-	// queryExecutionConfig->timingProcessor = std::make_unique<lingodb::execution::TimingPrinter>("some file");
+	queryExecutionConfig->timingProcessor = std::make_unique<ConciseTimingPrinter>();
 
 	auto scheduler = lingodb::scheduler::startScheduler();
 	auto executer = lingodb::execution::QueryExecuter::createDefaultExecuter(std::move(queryExecutionConfig), *session);
