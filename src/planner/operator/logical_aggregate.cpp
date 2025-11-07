@@ -51,8 +51,8 @@ void LogicalAggregate::AddMLIRSpecific(ClientContext &context, LogicalOperatorTy
 	// Currently empty as we are not supporting `group by` yet.
 	std::vector<mlir::Attribute> groupByAttrs;
 
-	std::cout << indent << "[LogicalAggregate](AddMLIRSpecific) :: " << LogicalOperatorToString(type) << std::endl;
-	std::cout.flush();
+	// std::cout << indent << "[LogicalAggregate](AddMLIRSpecific) :: " << LogicalOperatorToString(type) << std::endl;
+	// std::cout.flush();
 
 	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 	auto &mapping = mlirContainerInstance.getColumnMapping();
@@ -91,9 +91,9 @@ void LogicalAggregate::AddMLIRSpecific(ClientContext &context, LogicalOperatorTy
 	for (const auto &ex : this->expressions) {
 		auto &bound_agg = ex->Cast<BoundAggregateExpression>();
 		auto functionName = bound_agg.function.name;
-		std::cout << indent << "[LogicalAggregate](AddMLIRSpecific) Aggregate Function :: " << functionName
-		          << std::endl;
-		std::cout.flush();
+		// std::cout << indent << "[LogicalAggregate](AddMLIRSpecific) Aggregate Function :: " << functionName
+		//           << std::endl;
+		// std::cout.flush();
 
 		mlir::Value expr;
 		// TODO: verify if this is always the case or not
@@ -146,10 +146,10 @@ void LogicalAggregate::AddMLIRSpecific(ClientContext &context, LogicalOperatorTy
 		createdValues.push_back(expr);
 	}
 	auto baseTableOp = mlirContainerInstance.baseTableOp;
-	std::cout << indent << "[LogicalAggregate](AddMLIRSpecific) baseTableOp :: ";
-	std::cout.flush();
-	baseTableOp.print(llvm::outs());
-	std::cout << std::endl;
+	// std::cout << indent << "[LogicalAggregate](AddMLIRSpecific) baseTableOp :: ";
+	// std::cout.flush();
+	// baseTableOp.print(llvm::outs());
+	// std::cout << std::endl;
 	aggrBuilder.create<lingodb::compiler::dialect::tuples::ReturnOp>(loc, createdValues);
 	auto groupByOp = builder.create<lingodb::compiler::dialect::relalg::AggregationOp>(
 	    loc, tupleStreamType, baseTableOp, builder.getArrayAttr(groupByAttrs), builder.getArrayAttr(createdCols));

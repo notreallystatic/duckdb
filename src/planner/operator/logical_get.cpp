@@ -67,15 +67,87 @@ mlir::Type convertDuckDBTypeToNullableType(const LogicalType &type, mlir::MLIRCo
 LogicalGet::LogicalGet() : LogicalOperator(LogicalOperatorType::LOGICAL_GET) {
 }
 
+string LogicalGet::getTableName() {
+	auto table_entry = GetTable();
+	string table_name;
+
+	if (table_entry) {
+		// Physical table from catalog
+		table_name = table_entry->name;
+	} else {
+		// Table function (e.g., Arrow file scan)
+		// Check parameters for file path
+		if (!parameters.empty()) {
+			// First parameter is usually the file path for file-based scans
+			table_name = parameters[0].ToString();
+			// Extract just the filename if needed
+			size_t last_slash = table_name.find_last_of("/\\");
+			if (last_slash != string::npos) {
+				string filename = table_name.substr(last_slash + 1);
+				table_name = filename;
+
+				// Remove extension if needed
+				size_t last_dot = filename.find_last_of(".");
+				if (last_dot != string::npos) {
+					table_name = filename.substr(0, last_dot);
+				}
+			}
+		}
+	}
+	return table_name;
+}
+
 void LogicalGet::Walk(int depth) {
 	string indent = string(depth * 4, ' ');
 	std::cout << indent << "[LogicalGet](Walk) :: " << GetName() << std::endl;
 
+	for (auto x : input_table_names) {
+		std::cout << indent << "[LogicalGet](Walk) Input Table Name :: " << x << std::endl;
+	}
+
 	std::cout << indent << "[LogicalGet](Walk) Table Filters :: " << std::endl;
 	table_filters.print();
-	std::cout << std::endl;
-	std::cout << indent << "[LogicalGet](Walk) Expressions :: " << std::endl;
+	// std::cout << std::endl;
+	// std::cout << indent << "[LogicalGet](Walk) Expressions :: " << std::endl;
 
+	auto table_entry = GetTable();
+	string table_name;
+
+	if (table_entry) {
+		// Physical table from catalog
+		table_name = table_entry->name;
+		std::cout << indent << "Table Name (from catalog): " << table_name << std::endl;
+	} else {
+		// Table function (e.g., Arrow file scan)
+		std::cout << indent << "Scanning via table function: " << function.name << std::endl;
+
+		// Check parameters for file path
+		if (!parameters.empty()) {
+			// First parameter is usually the file path for file-based scans
+			table_name = parameters[0].ToString();
+			std::cout << indent << "File Path: " << table_name << std::endl;
+
+			// Extract just the filename if needed
+			size_t last_slash = table_name.find_last_of("/\\");
+			if (last_slash != string::npos) {
+				string filename = table_name.substr(last_slash + 1);
+				std::cout << indent << "File Name: " << filename << std::endl;
+
+				// Remove extension if needed
+				size_t last_dot = filename.find_last_of(".");
+				if (last_dot != string::npos) {
+					string table_name_no_ext = filename.substr(0, last_dot);
+					std::cout << indent << "Table Name (no ext): " << table_name_no_ext << std::endl;
+				}
+			}
+		}
+
+		// Also check named parameters
+		for (const auto &named_param : named_parameters) {
+			std::cout << indent << "Named param: " << named_param.first << " = " << named_param.second.ToString()
+			          << std::endl;
+		}
+	}
 	for (const auto &ex : expressions) {
 		printExpression(ex, depth + 1);
 	}
@@ -84,11 +156,13 @@ void LogicalGet::Walk(int depth) {
 
 void LogicalGet::AddMLIR(ClientContext &context, unique_ptr<LogicalOperator> &og_tree, int depth) {
 	string indent(depth * 4, ' ');
-	std::cout << indent << "[LogicalGet](AddMLIR) BEGIN \n";
+	// std::cout << indent << "[LogicalGet](AddMLIR) BEGIN \n";
 
 	auto table_catalog = GetTable();
+	// std::cout << "[LogicalGet](AddMLIR) Table Catalog Entry :: " << (table_catalog ? table_catalog->name : "nullptr")
+	//   << std::endl;
 	if (!table_catalog) {
-		const string table_name = "demo_table";
+		const string table_name = getTableName();
 
 		auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 		D_ASSERT(mlirContainerInstance.getContextPtr() != nullptr);
@@ -157,7 +231,7 @@ void LogicalGet::AddMLIR(ClientContext &context, unique_ptr<LogicalOperator> &og
 				og_tree->AddMLIRSpecific(context, LogicalOperatorType::LOGICAL_FILTER, og_tree, translationContext,
 				                         depth + 1);
 				if (mlirContainerInstance.getPredBlock() != nullptr) {
-					std::cout << indent << "[LogicalGet](AddMLIR) Adding SelectionOp for filter \n";
+					// std::cout << indent << "[LogicalGet](AddMLIR) Adding SelectionOp for filter \n";
 					auto sel = builder.create<lingodb::compiler::dialect::relalg::SelectionOp>(
 					    builder.getUnknownLoc(),
 					    lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext()), baseTableOp);
@@ -165,22 +239,22 @@ void LogicalGet::AddMLIR(ClientContext &context, unique_ptr<LogicalOperator> &og
 					baseTableOp = sel.getResult();
 				}
 
-				std::cout << indent << "[LogicalGet](AddMLIR) Current MLIR Value after Filter :: ";
-				std::cout.flush();
-				baseTableOp.print(llvm::outs());
-				std::cout << std::endl;
+				// std::cout << indent << "[LogicalGet](AddMLIR) Current MLIR Value after Filter :: ";
+				// std::cout.flush();
+				// baseTableOp.print(llvm::outs());
+				// std::cout << std::endl;
 				// We need to put the aggregations here.
 				og_tree->AddMLIRSpecific(context, LogicalOperatorType::LOGICAL_AGGREGATE_AND_GROUP_BY, og_tree,
 				                         translationContext, depth + 1);
 				if (mlirContainerInstance.aggrOp) {
-					std::cout << indent << "[LogicalGet](AddMLIR) Adding AggrOp \n";
+					// std::cout << indent << "[LogicalGet](AddMLIR) Adding AggrOp \n";
 					baseTableOp = mlirContainerInstance.aggrOp;
 				}
 				// Print the mlir value so far
-				std::cout << indent << "[LogicalGet](AddMLIR) Current MLIR Value after Filter :: ";
-				std::cout.flush();
-				baseTableOp.print(llvm::outs());
-				std::cout << std::endl;
+				// std::cout << indent << "[LogicalGet](AddMLIR) Current MLIR Value after Filter :: ";
+				// std::cout.flush();
+				// baseTableOp.print(llvm::outs());
+				// std::cout << std::endl;
 
 				// update the mapping in translation context.
 				auto &columnMapping = mlirContainerInstance.getColumnMapping();
@@ -226,23 +300,23 @@ void LogicalGet::AddMLIR(ClientContext &context, unique_ptr<LogicalOperator> &og
 		    builder.create<mlir::func::FuncOp>(builder.getUnknownLoc(), "main", builder.getFunctionType({}, {}));
 		funcOp.getBody().push_back(queryBlock);
 
-		std::cout << indent << "[LogicalGet](AddMLIR) Dumping MLIR module now :: \n";
-		mlirContainerInstance.print();
+		// std::cout << indent << "[LogicalGet](AddMLIR) Dumping MLIR module now :: \n";
+		// mlirContainerInstance.print();
 
 		runMLIR();
 
-		std::cout << indent << "[LogicalGet](AddMLIR) MLIR execution finished\n";
-		std::cout.flush();
+		// std::cout << indent << "[LogicalGet](AddMLIR) MLIR execution finished\n";
+		// std::cout.flush();
 	} else {
 		auto table_name = table_catalog ? table_catalog->name : "<unknown table>";
 
 		const auto &column_list = table_catalog->GetColumns();
 
-		for (auto &col : column_list.Logical()) {
-			std::cout << indent << " - " << col.Name() << " (" << col.Type().ToString() << ")" << std::endl;
-		}
+		// for (auto &col : column_list.Logical()) {
+		// std::cout << indent << " - " << col.Name() << " (" << col.Type().ToString() << ")" << std::endl;
+		// }
 
-		std::cout << indent << "[LogicalGet](AddMLIR) Walking LogicalGet operator" << std::endl;
+		// std::cout << indent << "[LogicalGet](AddMLIR) Walking LogicalGet operator" << std::endl;
 	}
 }
 

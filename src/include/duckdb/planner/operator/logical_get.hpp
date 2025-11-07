@@ -74,6 +74,7 @@ public:
 
 public:
 	void Walk(int depth = 0) override;
+	string getTableName();
 	void AddMLIR(ClientContext &context, unique_ptr<LogicalOperator> &og_tree, int depth = 0) override;
 	void SetColumnIds(vector<ColumnIndex> &&column_ids);
 	void AddColumnId(column_t column_id);

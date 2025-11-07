@@ -44,8 +44,8 @@ public:
 };
 
 void runMLIR() {
-	std::cout << "Running MLIR  module now\n";
-	std::cout.flush();
+	// std::cout << "Running MLIR  module now\n";
+	// std::cout.flush();
 
 	// moduleOp->dump();
 
@@ -55,8 +55,8 @@ void runMLIR() {
 	lingodb::compiler::support::eval::init();
 
 	lingodb::execution::ExecutionMode runMode = lingodb::execution::getExecutionMode();
-	std::cout << "Execution mode: " << static_cast<int>(runMode) << "\n";
-	std::cout.flush();
+	// std::cout << "Execution mode: " << static_cast<int>(runMode) << "\n";
+	// std::cout.flush();
 	auto queryExecutionConfig = lingodb::execution::createQueryExecutionConfig(runMode, false);
 	queryExecutionConfig->timingProcessor = std::make_unique<ConciseTimingPrinter>();
 

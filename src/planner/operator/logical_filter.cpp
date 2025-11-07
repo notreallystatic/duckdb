@@ -35,9 +35,9 @@ void AddMLIRForExpression(unique_ptr<Expression> &expr, MLIRTranslationContext &
 void LogicalFilter::AddMLIRSpecific(ClientContext &context, LogicalOperatorType operator_to_process,
                                     unique_ptr<LogicalOperator> &og_tree, MLIRTranslationContext &translationContext,
                                     int depth) {
-	std::cout << "AND conjunction status :: " << (LogicalFilter::found_conjunction_and ? "true" : "false") << std::endl;
-	string indent = string(depth * 4, ' ');
-	std::cout << indent << "[LogicalFilter](AddMLIRSpecific) :: " << LogicalOperatorToString(type) << std::endl;
+	// std::cout << "AND conjunction status :: " << (LogicalFilter::found_conjunction_and ? "true" : "false") <<
+	// std::endl; string indent = string(depth * 4, ' '); std::cout << indent << "[LogicalFilter](AddMLIRSpecific) :: "
+	// << LogicalOperatorToString(type) << std::endl;
 	for (auto &expr : this->expressions) {
 		AddMLIRForExpression(expr, translationContext, depth + 1);
 	}
@@ -58,16 +58,16 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 
 	auto expressionClass = expr->GetExpressionClass();
 
-	std::cout << "[translateExpression] :: " << ExpressionTypeToString(expr->GetExpressionType()) << " "
-	          << ExpressionClassToString(expressionClass) << std::endl;
+	// std::cout << "[translateExpression] :: " << ExpressionTypeToString(expr->GetExpressionType()) << " "
+	//           << ExpressionClassToString(expressionClass) << std::endl;
 
 	switch (expressionClass) {
 	case ExpressionClass::BOUND_CONJUNCTION: {
 		auto &bound_conjunction = (BoundConjunctionExpression &)*expr;
-		std::cout << "[translateExpression] BOUND_CONJUNCTION with children size :: "
-		          << bound_conjunction.children.size() << std::endl;
-		std::cout << "[translateExpression] BOUND_CONJUNCTION type :: "
-		          << ExpressionTypeToString(bound_conjunction.type) << std::endl;
+		// std::cout << "[translateExpression] BOUND_CONJUNCTION with children size :: "
+		//           << bound_conjunction.children.size() << std::endl;
+		// std::cout << "[translateExpression] BOUND_CONJUNCTION type :: "
+		//           << ExpressionTypeToString(bound_conjunction.type) << std::endl;
 		std::vector<mlir::Value> childExprs;
 		for (auto &child : bound_conjunction.children) {
 			childExprs.push_back(translateExpression(child, translationContext, predBuilder));
@@ -79,8 +79,8 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 			return predBuilder.create<lingodb::compiler::dialect::db::OrOp>(loc, childExprs);
 		}
 		default:
-			std::cout << "[translateExpression] Unhandled conjunction type :: "
-			          << ExpressionTypeToString(bound_conjunction.type) << std::endl;
+			// std::cout << "[translateExpression] Unhandled conjunction type :: "
+			//           << ExpressionTypeToString(bound_conjunction.type) << std::endl;
 			throw std::runtime_error("Unhandled conjunction type");
 		} break;
 		}
@@ -111,8 +111,8 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 			dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::gte;
 			break;
 		default:
-			std::cout << "[translateExpression] Unhandled comparison type :: "
-			          << ExpressionTypeToString(comparison_type) << std::endl;
+			// std::cout << "[translateExpression] Unhandled comparison type :: "
+			//   << ExpressionTypeToString(comparison_type) << std::endl;
 			throw std::runtime_error("Unhandled comparison type");
 		}
 		auto ct = lingodb::compiler::frontend::sql::SQLTypeInference::toCommonBaseTypes(predBuilder, {left, right});
@@ -122,17 +122,17 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 		auto &expressionObj = expr->Cast<BoundColumnRefExpression>();
 		auto column_name = expr->ToString();
 		auto *columnAttr = translationContext.getAttribute(column_name);
-		if (columnAttr == nullptr) {
-			std::cout << "[translateExpression] Column not found in resolver :: " << column_name << std::endl;
-			std::cout.flush();
-		} else {
-			std::cout << "[translateExpression] Column found in resolver :: " << column_name << std::endl;
-			std::cout.flush();
-		}
+		// if (columnAttr == nullptr) {
+		// 	std::cout << "[translateExpression] Column not found in resolver :: " << column_name << std::endl;
+		// 	std::cout.flush();
+		// } else {
+		// 	std::cout << "[translateExpression] Column found in resolver :: " << column_name << std::endl;
+		// 	std::cout.flush();
+		// }
 		auto currentTuple = translationContext.getCurrentTuple();
-		currentTuple.dump();
-		std::cout << "\n";
-		std::cout.flush();
+		// currentTuple.dump();
+		// std::cout << "\n";
+		// std::cout.flush();
 		return predBuilder.create<lingodb::compiler::dialect::tuples::GetColumnOp>(
 		    loc, columnAttr->type, attrManager.createRef(columnAttr), translationContext.getCurrentTuple());
 		break;
@@ -167,8 +167,8 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 			    predBuilder.getStringAttr(expressionValue));
 		}
 		default: {
-			std::cout << "[translateExpression] Unhandled constant type :: " << expressionObj.value.type().ToString()
-			          << std::endl;
+			// std::cout << "[translateExpression] Unhandled constant type :: " << expressionObj.value.type().ToString()
+			//   << std::endl;
 			break;
 		}
 		}
@@ -177,8 +177,8 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 	case ExpressionClass::BOUND_OPERATOR: {
 		auto &bound_op = (BoundOperatorExpression &)*expr;
 		if (bound_op.children.size() != 1) {
-			std::cout << "[translateExpression] BOUND_OPERATOR with unknown children size :: "
-			          << ExpressionTypeToString(expr->GetExpressionType()) << std::endl;
+			// std::cout << "[translateExpression] BOUND_OPERATOR with unknown children size :: "
+			//   << ExpressionTypeToString(expr->GetExpressionType()) << std::endl;
 			throw std::runtime_error("BOUND_OPERATOR with unhandled children size");
 		}
 		auto exprResult = translateExpression(bound_op.children[0], translationContext, predBuilder);
@@ -189,8 +189,8 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 			} else if (bound_op.type == ExpressionType::OPERATOR_IS_NULL) {
 				return isNull;
 			} else {
-				std::cout << "[translateExpression] Unhandled bound operator type :: "
-				          << ExpressionTypeToString(bound_op.type) << std::endl;
+				// std::cout << "[translateExpression] Unhandled bound operator type :: "
+				//   << ExpressionTypeToString(bound_op.type) << std::endl;
 				throw std::runtime_error("Unhandled bound operator type");
 			}
 		} else {
@@ -201,20 +201,22 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 		}
 	}
 	default: {
-		std::cout << "[translateExpression] Unhandled expression class :: " << ExpressionClassToString(expressionClass)
-		          << std::endl;
+		// std::cout << "[translateExpression] Unhandled expression class :: " <<
+		// ExpressionClassToString(expressionClass)
+		//   << std::endl;
 	}
 	}
 	return mlir::Value();
 }
 
 void AddMLIRForExpression(unique_ptr<Expression> &expr, MLIRTranslationContext &translationContext, int depth) {
-	string indent = string(depth * 4, ' ');
-	std::cout << indent << "[Expression](AddMLIRForExpression) :: " << ExpressionTypeToString(expr->GetExpressionType())
-	          << std::endl;
-	auto expressionClass = expr->GetExpressionClass();
-	std::cout << indent << "[Expression](AddMLIRForExpression) Class :: " << ExpressionClassToString(expressionClass)
-	          << std::endl;
+	// string indent = string(depth * 4, ' ');
+	// std::cout << indent << "[Expression](AddMLIRForExpression) :: " <<
+	// ExpressionTypeToString(expr->GetExpressionType())
+	//           << std::endl;
+	// auto expressionClass = expr->GetExpressionClass();
+	// std::cout << indent << "[Expression](AddMLIRForExpression) Class :: " << ExpressionClassToString(expressionClass)
+	//           << std::endl;
 
 	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 	auto &builder = mlirContainerInstance.getBuilder();

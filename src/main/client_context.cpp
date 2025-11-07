@@ -409,7 +409,7 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 	logical_plan->Verify(*this);
 #endif
 	if (config.enable_optimizer && logical_plan->RequireOptimizer()) {
-		std::cout << "Optimizing the logical plan now :: \n";
+		// std::cout << "Optimizing the logical plan now :: \n";
 		profiler.StartPhase(MetricsType::ALL_OPTIMIZERS);
 		Optimizer optimizer(*logical_planner.binder, *this);
 		logical_plan = optimizer.Optimize(std::move(logical_plan));
@@ -420,7 +420,7 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 		logical_plan->Verify(*this);
 #endif
 	}
-	logical_plan->Walk(0);
+	// logical_plan->Walk(0);
 
 	// The logical plan is not optimized. We can compile the query now.
 	if (compile_queries) {
@@ -429,7 +429,7 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 
 		// lingodb::execution::MLIRContainer::reset();
 
-		std::cout << "[ClientContext] (CreatePreparedStatementInternal) Compiling the logical plan now :: \n";
+		// std::cout << "[ClientContext] (CreatePreparedStatementInternal) Compiling the logical plan now :: \n";
 		logical_plan->AddMLIR(*this, logical_plan, 0);
 	}
 
@@ -683,7 +683,7 @@ vector<unique_ptr<SQLStatement>> ClientContext::ParseStatementsInternal(ClientCo
 	try {
 		Parser parser(GetParserOptions());
 		parser.ParseQuery(query);
-		std::cout << "[ClientContext::ParseStatementsInternal] Parsing query: " << query << std::endl;
+		// std::cout << "[ClientContext::ParseStatementsInternal] Parsing query: " << query << std::endl;
 
 		PragmaHandler handler(*this);
 		handler.HandlePragmaStatements(lock, parser.statements);
@@ -730,7 +730,7 @@ unique_ptr<LogicalOperator> ClientContext::ExtractPlan(const string &query) {
 
 		plan->ResolveOperatorTypes();
 	});
-	std::cout << "[ClientContext::ExtractPlan] Finished extracting plan :: " << plan->ToString() << std::endl;
+	// std::cout << "[ClientContext::ExtractPlan] Finished extracting plan :: " << plan->ToString() << std::endl;
 	return plan;
 }
 
@@ -915,9 +915,9 @@ unique_ptr<PendingQueryResult> ClientContext::PendingStatementOrPreparedStatemen
 		}
 		}
 	}
-	std::cout << "[ClientContext::PendingStatementOrPreparedStatementInternal] Query: " << query << std::endl;
-	std::cout << "[ClientContext::PendingStatementOrPreparedStatementInternal] Statement: " << statement->ToString()
-	          << std::endl;
+	// std::cout << "[ClientContext::PendingStatementOrPreparedStatementInternal] Query: " << query << std::endl;
+	// std::cout << "[ClientContext::PendingStatementOrPreparedStatementInternal] Statement: " << statement->ToString()
+	//           << std::endl;
 	return PendingStatementOrPreparedStatement(lock, query, std::move(statement), prepared, parameters);
 }
 
@@ -1005,7 +1005,7 @@ unique_ptr<QueryResult> ClientContext::Query(unique_ptr<SQLStatement> statement,
 unique_ptr<QueryResult> ClientContext::Query(const string &query, bool allow_stream_result) {
 	auto lock = LockContext();
 
-	std::cout << "Query :: " << query << std::endl;
+	// std::cout << "Query :: " << query << std::endl;
 
 	ErrorData error;
 	vector<unique_ptr<SQLStatement>> statements;
@@ -1023,14 +1023,14 @@ unique_ptr<QueryResult> ClientContext::Query(const string &query, bool allow_str
 		                                          std::move(collection), GetClientProperties());
 	}
 
-	std::cout << "Parsed SQL statements :::: " << statements.size() << std::endl;
+	// std::cout << "Parsed SQL statements :::: " << statements.size() << std::endl;
 
 	unique_ptr<QueryResult> result;
 
 	optional_ptr<QueryResult> last_result;
 	bool last_had_result = false;
 	for (idx_t i = 0; i < statements.size(); i++) {
-		std::cout << "Executing SQL statement: " << statements[i]->ToString() << std::endl;
+		// std::cout << "Executing SQL statement: " << statements[i]->ToString() << std::endl;
 		auto &statement = statements[i];
 		bool is_last_statement = i + 1 == statements.size();
 		PendingQueryParameters parameters;

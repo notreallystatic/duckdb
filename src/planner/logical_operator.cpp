@@ -35,18 +35,18 @@ void LogicalOperator::Walk(int depth) {
 }
 
 void LogicalOperator::AddMLIR(ClientContext &context, unique_ptr<LogicalOperator> &og_tree, int depth) {
-	string indent = std::string(depth * 4, ' ');
-	std::cout << indent << "[LogicalOperator](AddMLIR) :: " << LogicalOperatorToString(type) << std::endl;
-	std::cout << indent << "[LogicalOperator](AddMLIR) Expressions :: ";
-	for (const auto &ex : this->expressions) {
-		std::cout << ex->ToString() << ", ";
-	}
-	std::cout << std::endl;
-	std::cout << indent << "[LogicalOperator](AddMLIR) types :: ";
-	for (const auto &t : this->types) {
-		std::cout << t.ToString() << ", ";
-	}
-	std::cout << std::endl;
+	// string indent = std::string(depth * 4, ' ');
+	// std::cout << indent << "[LogicalOperator](AddMLIR) :: " << LogicalOperatorToString(type) << std::endl;
+	// std::cout << indent << "[LogicalOperator](AddMLIR) Expressions :: ";
+	// for (const auto &ex : this->expressions) {
+	// 	std::cout << ex->ToString() << ", ";
+	// }
+	// std::cout << std::endl;
+	// std::cout << indent << "[LogicalOperator](AddMLIR) types :: ";
+	// for (const auto &t : this->types) {
+	// 	std::cout << t.ToString() << ", ";
+	// }
+	// std::cout << std::endl;
 
 	for (const auto &child : children) {
 		child->AddMLIR(context, og_tree, depth + 1);
@@ -56,16 +56,16 @@ void LogicalOperator::AddMLIR(ClientContext &context, unique_ptr<LogicalOperator
 void LogicalOperator::AddMLIRSpecific(ClientContext &context, LogicalOperatorType operator_to_process,
                                       unique_ptr<LogicalOperator> &og_tree, MLIRTranslationContext &mlir_context,
                                       int depth) {
-	string indent = std::string(depth * 4, ' ');
-	std::cout << indent << "[LogicalOperator](AddMLIRSpecific) :: " << LogicalOperatorToString(type) << std::endl;
+	// string indent = std::string(depth * 4, ' ');
+	// std::cout << indent << "[LogicalOperator](AddMLIRSpecific) :: " << LogicalOperatorToString(type) << std::endl;
 	if (type != operator_to_process) {
 		for (const auto &child : children) {
 			child->AddMLIRSpecific(context, operator_to_process, og_tree, mlir_context, depth);
 		}
 		return;
 	}
-	std::cout << indent << "[LogicalOperator](AddMLIRSpecific) Matched :: " << LogicalOperatorToString(type)
-	          << std::endl;
+	// std::cout << indent << "[LogicalOperator](AddMLIRSpecific) Matched :: " << LogicalOperatorToString(type)
+	//           << std::endl;
 }
 
 LogicalOperator::LogicalOperator(LogicalOperatorType type)
