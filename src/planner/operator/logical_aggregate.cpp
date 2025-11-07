@@ -91,42 +91,54 @@ void LogicalAggregate::AddMLIRSpecific(ClientContext &context, LogicalOperatorTy
 	for (const auto &ex : this->expressions) {
 		auto &bound_agg = ex->Cast<BoundAggregateExpression>();
 		auto functionName = bound_agg.function.name;
+		std::cout << indent << "[LogicalAggregate](AddMLIRSpecific) Aggregate Function :: " << functionName
+		          << std::endl;
+		std::cout.flush();
 
 		mlir::Value expr;
 		// TODO: verify if this is always the case or not
 		std::string colName =
-		    bound_agg.children[0]->GetName(); // string columnName = tempNodePrefix + std::to_string(tempNodeId++);
+		    functionName == "count_star"
+		        ? "*"
+		        : bound_agg.children[0]
+		              ->GetName(); // string columnName = tempNodePrefix + std::to_string(tempNodeId++);
 		string columnName = functionName + "(" + colName + ")";
 		auto attrDef = attrManager.createDef(groupByName, columnName);
 
-		auto aggrFunc = llvm::StringSwitch<lingodb::compiler::dialect::relalg::AggrFunc>(functionName)
-		                    .Case("sum", lingodb::compiler::dialect::relalg::AggrFunc::sum)
-		                    .Case("min", lingodb::compiler::dialect::relalg::AggrFunc::min)
-		                    .Case("max", lingodb::compiler::dialect::relalg::AggrFunc::max)
-		                    .Case("avg", lingodb::compiler::dialect::relalg::AggrFunc::avg)
-		                    .Case("count", lingodb::compiler::dialect::relalg::AggrFunc::count)
-		                    .Default(lingodb::compiler::dialect::relalg::AggrFunc::count);
-
-		// get column name from the first child expression
-
-		auto *column = translationContext.getAttribute(colName);
-		lingodb::compiler::dialect::tuples::ColumnRefAttr refAttr = attrManager.createRef(column);
-		mlir::Value curRel = relation;
-		mlir::Type aggrResultType;
-		if (functionName == "count") {
-			aggrResultType = builder.getI64Type();
+		if (functionName == "count_star") {
+			expr = aggrBuilder.create<lingodb::compiler::dialect::relalg::CountRowsOp>(loc, builder.getI64Type(),
+			                                                                           relation);
 		} else {
-			aggrResultType = refAttr.getColumn().type;
-			if (functionName == "avg") {
-				auto baseType = getBaseType(aggrResultType);
-				// TODO: process this.
+
+			auto aggrFunc = llvm::StringSwitch<lingodb::compiler::dialect::relalg::AggrFunc>(functionName)
+			                    .Case("sum", lingodb::compiler::dialect::relalg::AggrFunc::sum)
+			                    .Case("min", lingodb::compiler::dialect::relalg::AggrFunc::min)
+			                    .Case("max", lingodb::compiler::dialect::relalg::AggrFunc::max)
+			                    .Case("avg", lingodb::compiler::dialect::relalg::AggrFunc::avg)
+			                    .Case("count_star", lingodb::compiler::dialect::relalg::AggrFunc::count)
+			                    .Default(lingodb::compiler::dialect::relalg::AggrFunc::count);
+
+			// get column name from the first child expression
+
+			auto *column = translationContext.getAttribute(colName);
+			lingodb::compiler::dialect::tuples::ColumnRefAttr refAttr = attrManager.createRef(column);
+			mlir::Value curRel = relation;
+			mlir::Type aggrResultType;
+			if (functionName == "count_star") {
+				aggrResultType = builder.getI64Type();
+			} else {
+				aggrResultType = refAttr.getColumn().type;
+				if (functionName == "avg") {
+					auto baseType = getBaseType(aggrResultType);
+					// TODO: process this.
+				}
+				if (!mlir::isa<lingodb::compiler::dialect::db::NullableType>(aggrResultType)) {
+					aggrResultType =
+					    lingodb::compiler::dialect::db::NullableType::get(builder.getContext(), aggrResultType);
+				}
+				expr = aggrBuilder.create<lingodb::compiler::dialect::relalg::AggrFuncOp>(loc, aggrResultType, aggrFunc,
+				                                                                          curRel, refAttr);
 			}
-			if (!mlir::isa<lingodb::compiler::dialect::db::NullableType>(aggrResultType)) {
-				aggrResultType =
-				    lingodb::compiler::dialect::db::NullableType::get(builder.getContext(), aggrResultType);
-			}
-			expr = aggrBuilder.create<lingodb::compiler::dialect::relalg::AggrFuncOp>(loc, aggrResultType, aggrFunc,
-			                                                                          curRel, refAttr);
 		}
 		attrDef.getColumn().type = expr.getType();
 		mapping.push_back({columnName, &attrDef.getColumn()});
