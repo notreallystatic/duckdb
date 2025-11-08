@@ -51,7 +51,7 @@ void runMLIR() {
 
 	bool eagerLoading = std::getenv("LINGODB_BACKEND_ONLY");
 	std::shared_ptr<lingodb::runtime::Session> session =
-	    lingodb::runtime::Session::createSession("dbdir", eagerLoading);
+	    lingodb::runtime::Session::createSession("bench_db", eagerLoading);
 	lingodb::compiler::support::eval::init();
 
 	lingodb::execution::ExecutionMode runMode = lingodb::execution::getExecutionMode();

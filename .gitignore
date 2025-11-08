@@ -365,3 +365,5 @@ test/sql/pragma/output.json
 tools/pythonpkg/duckdb_build/
 
 build*/
+
+bench_db/
