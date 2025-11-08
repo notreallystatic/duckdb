@@ -425,12 +425,19 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 	// The logical plan is not optimized. We can compile the query now.
 	if (compile_queries) {
 		lingodb::execution::MLIRContainer::reset();
+		profiler.StartPhase(MetricsType::COMPILE_AND_RUN_QUERIES);
 		// auto &mlirContainer = lingodb::execution::MLIRContainer::getInstance();
 
 		// lingodb::execution::MLIRContainer::reset();
 
 		// std::cout << "[ClientContext] (CreatePreparedStatementInternal) Compiling the logical plan now :: \n";
 		logical_plan->AddMLIR(*this, logical_plan, 0);
+
+		profiler.EndPhase();
+		if (statement_type == StatementType::SELECT_STATEMENT) {
+			result->is_compiled_query = true;
+			return result;
+		}
 	}
 
 	// Convert the logical query plan into a physical query plan.
@@ -835,6 +842,10 @@ unique_ptr<PendingQueryResult> ClientContext::PendingStatementInternal(ClientCon
 	}
 	if (!prepared->properties.bound_all_parameters) {
 		return ErrorResult<PendingQueryResult>(InvalidInputException("Not all parameters were bound"), query);
+	}
+
+	if (prepared->is_compiled_query) {
+		return ErrorResult<PendingQueryResult>(ExecutorException("Query already executed"), query);
 	}
 	// execute the prepared statement
 	CheckIfPreparedStatementIsExecutable(*prepared);
