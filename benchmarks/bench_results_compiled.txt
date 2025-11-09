@@ -1,0 +1,737 @@
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/lineitem.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.014 user 0.044428 sys 0.003920
+|                 count_star(*)  |
+----------------------------------
+|                       6001215  |
+ compilation: 12.257 [ms] execution: 1.461 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.345 user 0.032053 sys 0.204155
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/lineitem.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.013 user 0.046696 sys 0.004239
+|                 count_star(*)  |
+----------------------------------
+|                       6001215  |
+ compilation: 12.16 [ms] execution: 1.752 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.275 user 0.033586 sys 0.180361
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/lineitem.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.018 user 0.044579 sys 0.005420
+|                 count_star(*)  |
+----------------------------------
+|                       6001215  |
+ compilation: 12.659 [ms] execution: 1.506 [ms] Run Time (s): real 0.235 user 0.031030 sys 0.160976
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/orders.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.015 user 0.046574 sys 0.003956
+|                 count_star(*)  |
+----------------------------------
+|                       1500000  |
+ compilation: 10.653 [ms] execution: 0.534 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.078 user 0.018622 sys 0.041838
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/orders.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.020 user 0.064452 sys 0.004778
+|                 count_star(*)  |
+----------------------------------
+|                       1500000  |
+ compilation: 18.477 [ms] execution: 0.493 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.058 user 0.018043 sys 0.038166
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/orders.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.016 user 0.044015 sys 0.004052
+|                 count_star(*)  |
+----------------------------------
+|                       1500000  |
+ compilation: 10.241 [ms] execution: 0.54 [ms] Run Time (s): real 0.048 user 0.017768 sys 0.035620
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/customer.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.016 user 0.046584 sys 0.004750
+|                 count_star(*)  |
+----------------------------------
+|                        150000  |
+ compilation: 11.127 [ms] execution: 0.185 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.032 user 0.014873 sys 0.012002
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/customer.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.018 user 0.043348 sys 0.004019
+|                 count_star(*)  |
+----------------------------------
+|                        150000  |
+ compilation: 10.239 [ms] execution: 0.201 [ms] Run Time (s): real 0.022 user 0.014189 sys 0.011379
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/customer.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.016 user 0.046584 sys 0.004057
+|                 count_star(*)  |
+----------------------------------
+|                        150000  |
+ compilation: 10.565 [ms] execution: 0.19 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.023 user 0.014535 sys 0.011262
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/partsupp.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.016 user 0.046110 sys 0.004942
+|                 count_star(*)  |
+----------------------------------
+|                        800000  |
+ compilation: 10.223 [ms] execution: 0.336 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.059 user 0.016214 sys 0.030549
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/partsupp.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.015 user 0.042068 sys 0.003391
+|                 count_star(*)  |
+----------------------------------
+|                        800000  |
+ compilation: 10.679 [ms] execution: 0.434 [ms] Run Time (s): real 0.039 user 0.015939 sys 0.026396
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/partsupp.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.018 user 0.059830 sys 0.004494
+|                 count_star(*)  |
+----------------------------------
+|                        800000  |
+ compilation: 11.678 [ms] execution: 0.302 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.042 user 0.016434 sys 0.028705
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/part.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.015 user 0.048400 sys 0.004457
+|                 count_star(*)  |
+----------------------------------
+|                        200000  |
+ compilation: 11.108 [ms] execution: 0.188 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.030 user 0.014976 sys 0.012219
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/part.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.015 user 0.044554 sys 0.004321
+|                 count_star(*)  |
+----------------------------------
+|                        200000  |
+ compilation: 12.524 [ms] execution: 0.134 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.026 user 0.014953 sys 0.014019
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/part.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.018 user 0.062105 sys 0.004932
+|                 count_star(*)  |
+----------------------------------
+|                        200000  |
+ compilation: 11.071 [ms] execution: 0.171 [ms] Run Time (s): real 0.023 user 0.014944 sys 0.010969
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/supplier.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.015 user 0.045049 sys 0.003798
+|                 count_star(*)  |
+----------------------------------
+|                         10000  |
+ compilation: 10.609 [ms] execution: 0.095 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.020 user 0.014067 sys 0.008018
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/supplier.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.017 user 0.047653 sys 0.004533
+|                 count_star(*)  |
+----------------------------------
+|                         10000  |
+ compilation: 16.112 [ms] execution: 0.095 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.025 user 0.016873 sys 0.008952
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/supplier.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.016 user 0.044252 sys 0.003962
+|                 count_star(*)  |
+----------------------------------
+|                         10000  |
+ compilation: 11.292 [ms] execution: 0.075 [ms] Run Time (s): real 0.018 user 0.014416 sys 0.007292
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/nation.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.015 user 0.046425 sys 0.004147
+|                 count_star(*)  |
+----------------------------------
+|                            25  |
+ compilation: 10.549 [ms] execution: 0.175 [ms] Run Time (s): real 0.017 user 0.014049 sys 0.006291
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/nation.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.015 user 0.044683 sys 0.004393
+|                 count_star(*)  |
+----------------------------------
+|                            25  |
+ compilation: 12.119 [ms] execution: 0.086 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.019 user 0.014116 sys 0.007662
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/nation.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.017 user 0.044555 sys 0.004389
+|                 count_star(*)  |
+----------------------------------
+|                            25  |
+ compilation: 10.751 [ms] execution: 0.085 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.018 user 0.014183 sys 0.007053
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/region.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.015 user 0.046316 sys 0.004236
+|                 count_star(*)  |
+----------------------------------
+|                             5  |
+ compilation: 11.464 [ms] execution: 0.109 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.020 user 0.014721 sys 0.007347
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/region.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.017 user 0.044099 sys 0.003926
+|                 count_star(*)  |
+----------------------------------
+|                             5  |
+ compilation: 9.797 [ms] execution: 0.146 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.017 user 0.013377 sys 0.007001
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/region.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.015 user 0.046193 sys 0.004026
+|                 count_star(*)  |
+----------------------------------
+|                             5  |
+ compilation: 9.941 [ms] execution: 0.11 [ms] Run Time (s): real 0.017 user 0.013658 sys 0.006900
+
+
+==========================================
+Running query: SELECT sum(l_linenumber) FROM 'bench_db/lineitem.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.015 user 0.043309 sys 0.003832
+|             sum(l_linenumber)  |
+----------------------------------
+|                      18007100  |
+ compilation: 13.726 [ms] execution: 3.408 [ms] Run Time (s): real 0.165 user 0.046299 sys 0.142123
+
+
+==========================================
+Running query: SELECT sum(l_linenumber) FROM 'bench_db/lineitem.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.015 user 0.040877 sys 0.003326
+|             sum(l_linenumber)  |
+----------------------------------
+|                      18007100  |
+ compilation: 16.939 [ms] execution: 3.818 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.260 user 0.049932 sys 0.182146
+
+
+==========================================
+Running query: SELECT sum(l_linenumber) FROM 'bench_db/lineitem.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.016 user 0.046383 sys 0.004557
+|             sum(l_linenumber)  |
+----------------------------------
+|                      18007100  |
+ compilation: 15.468 [ms] execution: 3.717 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.166 user 0.047534 sys 0.141580
+
+
+==========================================
+Running query: SELECT sum(l_linenumber), max(l_orderkey), min(l_suppkey) FROM 'bench_db/lineitem.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.015 user 0.045135 sys 0.003886
+|             sum(l_linenumber)  |               max(l_orderkey)  |                min(l_suppkey)  |
+----------------------------------------------------------------------------------------------------
+|                      18007100  |                       6000000  |                             1  |
+ compilation: 18.848 [ms] execution: 6.62 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.180 user 0.074461 sys 0.148583
+
+
+==========================================
+Running query: SELECT sum(l_linenumber), max(l_orderkey), min(l_suppkey) FROM 'bench_db/lineitem.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.014 user 0.043690 sys 0.003808
+|             sum(l_linenumber)  |               max(l_orderkey)  |                min(l_suppkey)  |
+----------------------------------------------------------------------------------------------------
+|                      18007100  |                       6000000  |                             1  |
+ compilation: 18.943 [ms] execution: 6.406 [ms] Run Time (s): real 0.170 user 0.072960 sys 0.140506
+
+
+==========================================
+Running query: SELECT sum(l_linenumber), max(l_orderkey), min(l_suppkey) FROM 'bench_db/lineitem.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.013 user 0.046594 sys 0.004102
+|             sum(l_linenumber)  |               max(l_orderkey)  |                min(l_suppkey)  |
+----------------------------------------------------------------------------------------------------
+|                      18007100  |                       6000000  |                             1  |
+ compilation: 18.474 [ms] execution: 8.063 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.171 user 0.076449 sys 0.140765
+
+
+==========================================
+Running query: SELECT max(o_orderkey), min(o_custkey) FROM 'bench_db/orders.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.017 user 0.046982 sys 0.004078
+|               max(o_orderkey)  |                min(o_custkey)  |
+-------------------------------------------------------------------
+|                       6000000  |                             1  |
+ compilation: 17.36 [ms] execution: 1.734 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.057 user 0.031907 sys 0.036670
+
+
+==========================================
+Running query: SELECT max(o_orderkey), min(o_custkey) FROM 'bench_db/orders.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.016 user 0.046601 sys 0.004251
+|               max(o_orderkey)  |                min(o_custkey)  |
+-------------------------------------------------------------------
+|                       6000000  |                             1  |
+ compilation: 15.995 [ms] execution: 1.388 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.067 user 0.030316 sys 0.037834
+
+
+==========================================
+Running query: SELECT max(o_orderkey), min(o_custkey) FROM 'bench_db/orders.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.014 user 0.045404 sys 0.004244
+|               max(o_orderkey)  |                min(o_custkey)  |
+-------------------------------------------------------------------
+|                       6000000  |                             1  |
+ compilation: 16.402 [ms] execution: 1.713 [ms] Run Time (s): real 0.054 user 0.030036 sys 0.035906
+
+
+==========================================
+Running query: SELECT sum(o_shippriority) FROM 'bench_db/orders.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.018 user 0.044006 sys 0.004580
+|           sum(o_shippriority)  |
+----------------------------------
+|                             0  |
+ compilation: 13.644 [ms] execution: 0.962 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.050 user 0.025049 sys 0.033682
+
+
+==========================================
+Running query: SELECT sum(o_shippriority) FROM 'bench_db/orders.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.014 user 0.045637 sys 0.004139
+|           sum(o_shippriority)  |
+----------------------------------
+|                             0  |
+ compilation: 13.858 [ms] execution: 1.192 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.051 user 0.024673 sys 0.033843
+
+
+==========================================
+Running query: SELECT sum(o_shippriority) FROM 'bench_db/orders.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.017 user 0.045372 sys 0.004848
+|           sum(o_shippriority)  |
+----------------------------------
+|                             0  |
+ compilation: 13.72 [ms] execution: 0.915 [ms] Run Time (s): real 0.050 user 0.024349 sys 0.034210
+
+
+==========================================
+Running query: SELECT sum(c_nationkey) FROM 'bench_db/customer.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.014 user 0.046828 sys 0.004324
+|              sum(c_nationkey)  |
+----------------------------------
+|                       1801005  |
+ compilation: 15.768 [ms] execution: 0.227 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.028 user 0.019130 sys 0.013149
+
+
+==========================================
+Running query: SELECT sum(c_nationkey) FROM 'bench_db/customer.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.020 user 0.057289 sys 0.005709
+|              sum(c_nationkey)  |
+----------------------------------
+|                       1801005  |
+ compilation: 17.066 [ms] execution: 0.279 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.030 user 0.020771 sys 0.011871
+
+
+==========================================
+Running query: SELECT sum(c_nationkey) FROM 'bench_db/customer.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.016 user 0.045753 sys 0.004182
+|              sum(c_nationkey)  |
+----------------------------------
+|                       1801005  |
+ compilation: 14.706 [ms] execution: 0.211 [ms] Run Time (s): real 0.026 user 0.018895 sys 0.011383
+
+
+==========================================
+Running query: SELECT sum(c_custkey), min(c_custkey), max(c_custkey) FROM 'bench_db/customer.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.014 user 0.044802 sys 0.004106
+|                sum(c_custkey)  |                min(c_custkey)  |                max(c_custkey)  |
+----------------------------------------------------------------------------------------------------
+|                   -1634826888  |                             1  |                        150000  |
+ compilation: 18.713 [ms] execution: 0.438 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.031 user 0.023573 sys 0.010493
+
+
+==========================================
+Running query: SELECT sum(c_custkey), min(c_custkey), max(c_custkey) FROM 'bench_db/customer.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.015 user 0.047429 sys 0.004221
+|                sum(c_custkey)  |                min(c_custkey)  |                max(c_custkey)  |
+----------------------------------------------------------------------------------------------------
+|                   -1634826888  |                             1  |                        150000  |
+ compilation: 17.771 [ms] execution: 0.4 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.030 user 0.022996 sys 0.011837
+
+
+==========================================
+Running query: SELECT sum(c_custkey), min(c_custkey), max(c_custkey) FROM 'bench_db/customer.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.016 user 0.043416 sys 0.004116
+|                sum(c_custkey)  |                min(c_custkey)  |                max(c_custkey)  |
+----------------------------------------------------------------------------------------------------
+|                   -1634826888  |                             1  |                        150000  |
+ compilation: 110.112 [ms] execution: 14.063 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.142 user 0.037696 sys 0.011588
+
+
+==========================================
+Running query: SELECT sum(p_size) FROM 'bench_db/part.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.018 user 0.046782 sys 0.004685
+|                   sum(p_size)  |
+----------------------------------
+|                       5085421  |
+ compilation: 16.115 [ms] execution: 0.38 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.029 user 0.020904 sys 0.012606
+
+
+==========================================
+Running query: SELECT sum(p_size) FROM 'bench_db/part.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.016 user 0.059474 sys 0.005395
+|                   sum(p_size)  |
+----------------------------------
+|                       5085421  |
+ compilation: 14.7 [ms] execution: 0.359 [ms] Run Time (s): real 0.027 user 0.019727 sys 0.012126
+
+
+==========================================
+Running query: SELECT sum(p_size) FROM 'bench_db/part.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.016 user 0.048536 sys 0.004756
+|                   sum(p_size)  |
+----------------------------------
+|                       5085421  |
+ compilation: 15.21 [ms] execution: 0.256 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.028 user 0.019767 sys 0.012278
+
+
+==========================================
+Running query: SELECT sum(s_suppkey), sum(s_nationkey), min(s_nationkey), max(s_nationkey) FROM 'bench_db/supplier.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.015 user 0.044684 sys 0.003792
+|                sum(s_suppkey)  |              sum(s_nationkey)  |              min(s_nationkey)  |              max(s_nationkey)  |
+-------------------------------------------------------------------------------------------------------------------------------------
+|                      50005000  |                        119353  |                             0  |                            24  |
+ compilation: 22.284 [ms] execution: 0.151 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.030 user 0.025107 sys 0.008334
+
+
+==========================================
+Running query: SELECT sum(s_suppkey), sum(s_nationkey), min(s_nationkey), max(s_nationkey) FROM 'bench_db/supplier.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.015 user 0.048967 sys 0.004417
+|                sum(s_suppkey)  |              sum(s_nationkey)  |              min(s_nationkey)  |              max(s_nationkey)  |
+-------------------------------------------------------------------------------------------------------------------------------------
+|                      50005000  |                        119353  |                             0  |                            24  |
+ compilation: 20.957 [ms] execution: 0.128 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.028 user 0.024619 sys 0.007172
+
+
+==========================================
+Running query: SELECT sum(s_suppkey), sum(s_nationkey), min(s_nationkey), max(s_nationkey) FROM 'bench_db/supplier.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.015 user 0.043483 sys 0.003604
+|                sum(s_suppkey)  |              sum(s_nationkey)  |              min(s_nationkey)  |              max(s_nationkey)  |
+-------------------------------------------------------------------------------------------------------------------------------------
+|                      50005000  |                        119353  |                             0  |                            24  |
+ compilation: 20.574 [ms] execution: 0.149 [ms] Run Time (s): real 0.028 user 0.024686 sys 0.007478
+
+
+==========================================
+Running query: SELECT * FROM 'bench_db/region.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.016 user 0.044027 sys 0.003664
+|                   r_regionkey  |                        r_name  |                     r_comment  |
+----------------------------------------------------------------------------------------------------
+|                             0  |                      "AFRICA"  |"lar deposits. blithely final packages cajole. regular waters are final requests. regular accounts are according to "  |
+|                             1  |                     "AMERICA"  |"hs use ironic, even requests. s"  |
+|                             2  |                        "ASIA"  |"ges. thinly even pinto beans ca"  |
+|                             3  |                      "EUROPE"  |"ly final courts cajole furiously final excuse"  |
+|                             4  |                 "MIDDLE EAST"  |"uickly special accounts cajole carefully blithely close requests. carefully final asymptotes haggle furiousl"  |
+ compilation: 14.59 [ms] execution: 0.087 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.021 user 0.017869 sys 0.005494
+
+
+==========================================
+Running query: SELECT * FROM 'bench_db/region.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.016 user 0.045148 sys 0.003978
+|                   r_regionkey  |                        r_name  |                     r_comment  |
+----------------------------------------------------------------------------------------------------
+|                             0  |                      "AFRICA"  |"lar deposits. blithely final packages cajole. regular waters are final requests. regular accounts are according to "  |
+|                             1  |                     "AMERICA"  |"hs use ironic, even requests. s"  |
+|                             2  |                        "ASIA"  |"ges. thinly even pinto beans ca"  |
+|                             3  |                      "EUROPE"  |"ly final courts cajole furiously final excuse"  |
+|                             4  |                 "MIDDLE EAST"  |"uickly special accounts cajole carefully blithely close requests. carefully final asymptotes haggle furiousl"  |
+ compilation: 14.608 [ms] execution: 0.117 [ms] Run Time (s): real 0.021 user 0.018049 sys 0.007503
+
+
+==========================================
+Running query: SELECT * FROM 'bench_db/region.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.016 user 0.049117 sys 0.004052
+|                   r_regionkey  |                        r_name  |                     r_comment  |
+----------------------------------------------------------------------------------------------------
+|                             0  |                      "AFRICA"  |"lar deposits. blithely final packages cajole. regular waters are final requests. regular accounts are according to "  |
+|                             1  |                     "AMERICA"  |"hs use ironic, even requests. s"  |
+|                             2  |                        "ASIA"  |"ges. thinly even pinto beans ca"  |
+|                             3  |                      "EUROPE"  |"ly final courts cajole furiously final excuse"  |
+|                             4  |                 "MIDDLE EAST"  |"uickly special accounts cajole carefully blithely close requests. carefully final asymptotes haggle furiousl"  |
+ compilation: 16.042 [ms] execution: 0.24 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.024 user 0.019315 sys 0.007590
+
+
+==========================================
+Running query: SELECT sum(r_regionkey) FROM 'bench_db/region.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.015 user 0.046984 sys 0.004340
+|              sum(r_regionkey)  |
+----------------------------------
+|                            10  |
+ compilation: 15.623 [ms] execution: 0.078 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.023 user 0.018425 sys 0.007601
+
+
+==========================================
+Running query: SELECT sum(r_regionkey) FROM 'bench_db/region.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.018 user 0.059232 sys 0.004103
+|              sum(r_regionkey)  |
+----------------------------------
+|                            10  |
+ compilation: 15.115 [ms] execution: 0.103 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.022 user 0.018161 sys 0.006468
+
+
+==========================================
+Running query: SELECT sum(r_regionkey) FROM 'bench_db/region.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 1
+Run Time (s): real 0.015 user 0.045578 sys 0.004065
+|              sum(r_regionkey)  |
+----------------------------------
+|                            10  |
+ compilation: 16.222 [ms] execution: 0.091 [ms]
+Executor Error: Query already executed
+Run Time (s): real 0.024 user 0.018405 sys 0.008025
+
+
+All queries completed! Results saved to bench_results.txt

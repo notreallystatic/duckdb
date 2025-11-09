@@ -1,0 +1,823 @@
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/lineitem.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.043567 sys 0.004051
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│      6001215 │
+└──────────────┘
+Run Time (s): real 0.300 user 0.054693 sys 0.167497
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/lineitem.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.014 user 0.052891 sys 0.003899
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│      6001215 │
+└──────────────┘
+Run Time (s): real 0.196 user 0.050256 sys 0.137721
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/lineitem.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.037899 sys 0.003114
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│      6001215 │
+└──────────────┘
+Run Time (s): real 0.277 user 0.057036 sys 0.154175
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/orders.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.012 user 0.042826 sys 0.004045
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│      1500000 │
+└──────────────┘
+Run Time (s): real 0.080 user 0.010871 sys 0.041236
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/orders.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.040087 sys 0.003744
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│      1500000 │
+└──────────────┘
+Run Time (s): real 0.048 user 0.009800 sys 0.034918
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/orders.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.010 user 0.043006 sys 0.003882
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│      1500000 │
+└──────────────┘
+Run Time (s): real 0.052 user 0.010150 sys 0.037303
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/customer.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.012 user 0.039641 sys 0.003599
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│       150000 │
+└──────────────┘
+Run Time (s): real 0.020 user 0.002090 sys 0.011733
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/customer.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.012 user 0.041692 sys 0.003850
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│       150000 │
+└──────────────┘
+Run Time (s): real 0.006 user 0.002041 sys 0.004413
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/customer.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.012 user 0.038130 sys 0.006752
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│       150000 │
+└──────────────┘
+Run Time (s): real 0.006 user 0.001985 sys 0.004404
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/partsupp.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.041201 sys 0.003690
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│       800000 │
+└──────────────┘
+Run Time (s): real 0.068 user 0.008110 sys 0.040873
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/partsupp.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.041334 sys 0.004082
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│       800000 │
+└──────────────┘
+Run Time (s): real 0.034 user 0.007793 sys 0.023663
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/partsupp.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.012 user 0.042621 sys 0.004065
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│       800000 │
+└──────────────┘
+Run Time (s): real 0.025 user 0.006826 sys 0.018233
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/part.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.012 user 0.039483 sys 0.003383
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│       200000 │
+└──────────────┘
+Run Time (s): real 0.013 user 0.002188 sys 0.006506
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/part.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.041309 sys 0.003725
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│       200000 │
+└──────────────┘
+Run Time (s): real 0.007 user 0.002059 sys 0.004731
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/part.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.041355 sys 0.003768
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│       200000 │
+└──────────────┘
+Run Time (s): real 0.010 user 0.002123 sys 0.006633
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/supplier.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.041457 sys 0.004044
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│        10000 │
+└──────────────┘
+Run Time (s): real 0.003 user 0.000539 sys 0.000714
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/supplier.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.012 user 0.042094 sys 0.004689
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│        10000 │
+└──────────────┘
+Run Time (s): real 0.001 user 0.000500 sys 0.000559
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/supplier.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.012 user 0.041249 sys 0.003956
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│        10000 │
+└──────────────┘
+Run Time (s): real 0.000 user 0.000463 sys 0.000514
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/nation.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.013 user 0.039124 sys 0.006520
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│           25 │
+└──────────────┘
+Run Time (s): real 0.001 user 0.000366 sys 0.000285
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/nation.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.042084 sys 0.003791
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│           25 │
+└──────────────┘
+Run Time (s): real 0.001 user 0.000352 sys 0.000206
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/nation.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.012 user 0.044651 sys 0.004145
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│           25 │
+└──────────────┘
+Run Time (s): real 0.001 user 0.000416 sys 0.000246
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/region.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.041896 sys 0.003780
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│            5 │
+└──────────────┘
+Run Time (s): real 0.001 user 0.000365 sys 0.000284
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/region.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.012 user 0.042298 sys 0.006423
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│            5 │
+└──────────────┘
+Run Time (s): real 0.001 user 0.000375 sys 0.000253
+
+
+==========================================
+Running query: SELECT COUNT(*) FROM 'bench_db/region.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.012 user 0.040728 sys 0.003598
+┌──────────────┐
+│ count_star() │
+│    int64     │
+├──────────────┤
+│            5 │
+└──────────────┘
+Run Time (s): real 0.000 user 0.000339 sys 0.000185
+
+
+==========================================
+Running query: SELECT sum(l_linenumber) FROM 'bench_db/lineitem.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.040999 sys 0.003800
+┌───────────────────┐
+│ sum(l_linenumber) │
+│      int128       │
+├───────────────────┤
+│          18007100 │
+└───────────────────┘
+Run Time (s): real 0.196 user 0.052061 sys 0.136088
+
+
+==========================================
+Running query: SELECT sum(l_linenumber) FROM 'bench_db/lineitem.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.012 user 0.040727 sys 0.003657
+┌───────────────────┐
+│ sum(l_linenumber) │
+│      int128       │
+├───────────────────┤
+│          18007100 │
+└───────────────────┘
+Run Time (s): real 0.188 user 0.052035 sys 0.132688
+
+
+==========================================
+Running query: SELECT sum(l_linenumber) FROM 'bench_db/lineitem.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.010 user 0.041780 sys 0.003847
+┌───────────────────┐
+│ sum(l_linenumber) │
+│      int128       │
+├───────────────────┤
+│          18007100 │
+└───────────────────┘
+Run Time (s): real 0.184 user 0.051605 sys 0.129610
+
+
+==========================================
+Running query: SELECT sum(l_linenumber), max(l_orderkey), min(l_suppkey) FROM 'bench_db/lineitem.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.013 user 0.037449 sys 0.003176
+┌───────────────────┬─────────────────┬────────────────┐
+│ sum(l_linenumber) │ max(l_orderkey) │ min(l_suppkey) │
+│      int128       │      int32      │     int32      │
+├───────────────────┼─────────────────┼────────────────┤
+│          18007100 │         6000000 │              1 │
+└───────────────────┴─────────────────┴────────────────┘
+Run Time (s): real 0.200 user 0.065417 sys 0.129782
+
+
+==========================================
+Running query: SELECT sum(l_linenumber), max(l_orderkey), min(l_suppkey) FROM 'bench_db/lineitem.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.041449 sys 0.003774
+┌───────────────────┬─────────────────┬────────────────┐
+│ sum(l_linenumber) │ max(l_orderkey) │ min(l_suppkey) │
+│      int128       │      int32      │     int32      │
+├───────────────────┼─────────────────┼────────────────┤
+│          18007100 │         6000000 │              1 │
+└───────────────────┴─────────────────┴────────────────┘
+Run Time (s): real 0.203 user 0.066415 sys 0.129994
+
+
+==========================================
+Running query: SELECT sum(l_linenumber), max(l_orderkey), min(l_suppkey) FROM 'bench_db/lineitem.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.040973 sys 0.003765
+┌───────────────────┬─────────────────┬────────────────┐
+│ sum(l_linenumber) │ max(l_orderkey) │ min(l_suppkey) │
+│      int128       │      int32      │     int32      │
+├───────────────────┼─────────────────┼────────────────┤
+│          18007100 │         6000000 │              1 │
+└───────────────────┴─────────────────┴────────────────┘
+Run Time (s): real 0.208 user 0.066090 sys 0.134373
+
+
+==========================================
+Running query: SELECT max(o_orderkey), min(o_custkey) FROM 'bench_db/orders.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.040388 sys 0.003715
+┌─────────────────┬────────────────┐
+│ max(o_orderkey) │ min(o_custkey) │
+│      int32      │     int32      │
+├─────────────────┼────────────────┤
+│         6000000 │              1 │
+└─────────────────┴────────────────┘
+Run Time (s): real 0.040 user 0.011491 sys 0.026827
+
+
+==========================================
+Running query: SELECT max(o_orderkey), min(o_custkey) FROM 'bench_db/orders.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.012 user 0.041448 sys 0.003664
+┌─────────────────┬────────────────┐
+│ max(o_orderkey) │ min(o_custkey) │
+│      int32      │     int32      │
+├─────────────────┼────────────────┤
+│         6000000 │              1 │
+└─────────────────┴────────────────┘
+Run Time (s): real 0.044 user 0.011223 sys 0.028595
+
+
+==========================================
+Running query: SELECT max(o_orderkey), min(o_custkey) FROM 'bench_db/orders.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.040240 sys 0.003525
+┌─────────────────┬────────────────┐
+│ max(o_orderkey) │ min(o_custkey) │
+│      int32      │     int32      │
+├─────────────────┼────────────────┤
+│         6000000 │              1 │
+└─────────────────┴────────────────┘
+Run Time (s): real 0.037 user 0.011001 sys 0.025829
+
+
+==========================================
+Running query: SELECT sum(o_shippriority) FROM 'bench_db/orders.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.041552 sys 0.003941
+┌─────────────────────┐
+│ sum(o_shippriority) │
+│       int128        │
+├─────────────────────┤
+│                   0 │
+└─────────────────────┘
+Run Time (s): real 0.050 user 0.011405 sys 0.032610
+
+
+==========================================
+Running query: SELECT sum(o_shippriority) FROM 'bench_db/orders.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.041525 sys 0.003926
+┌─────────────────────┐
+│ sum(o_shippriority) │
+│       int128        │
+├─────────────────────┤
+│                   0 │
+└─────────────────────┘
+Run Time (s): real 0.038 user 0.010907 sys 0.026469
+
+
+==========================================
+Running query: SELECT sum(o_shippriority) FROM 'bench_db/orders.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.041917 sys 0.003674
+┌─────────────────────┐
+│ sum(o_shippriority) │
+│       int128        │
+├─────────────────────┤
+│                   0 │
+└─────────────────────┘
+Run Time (s): real 0.037 user 0.010830 sys 0.026057
+
+
+==========================================
+Running query: SELECT sum(c_nationkey) FROM 'bench_db/customer.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.040320 sys 0.003583
+┌──────────────────┐
+│ sum(c_nationkey) │
+│      int128      │
+├──────────────────┤
+│          1801005 │
+└──────────────────┘
+Run Time (s): real 0.007 user 0.002090 sys 0.004594
+
+
+==========================================
+Running query: SELECT sum(c_nationkey) FROM 'bench_db/customer.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.013 user 0.042329 sys 0.005220
+┌──────────────────┐
+│ sum(c_nationkey) │
+│      int128      │
+├──────────────────┤
+│          1801005 │
+└──────────────────┘
+Run Time (s): real 0.006 user 0.002150 sys 0.004382
+
+
+==========================================
+Running query: SELECT sum(c_nationkey) FROM 'bench_db/customer.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.040833 sys 0.003933
+┌──────────────────┐
+│ sum(c_nationkey) │
+│      int128      │
+├──────────────────┤
+│          1801005 │
+└──────────────────┘
+Run Time (s): real 0.006 user 0.002035 sys 0.004240
+
+
+==========================================
+Running query: SELECT sum(c_custkey), min(c_custkey), max(c_custkey) FROM 'bench_db/customer.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.010 user 0.042331 sys 0.003698
+┌────────────────┬────────────────┬────────────────┐
+│ sum(c_custkey) │ min(c_custkey) │ max(c_custkey) │
+│     int128     │     int32      │     int32      │
+├────────────────┼────────────────┼────────────────┤
+│    11250075000 │              1 │         150000 │
+└────────────────┴────────────────┴────────────────┘
+Run Time (s): real 0.007 user 0.002212 sys 0.004287
+
+
+==========================================
+Running query: SELECT sum(c_custkey), min(c_custkey), max(c_custkey) FROM 'bench_db/customer.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.012 user 0.041157 sys 0.003777
+┌────────────────┬────────────────┬────────────────┐
+│ sum(c_custkey) │ min(c_custkey) │ max(c_custkey) │
+│     int128     │     int32      │     int32      │
+├────────────────┼────────────────┼────────────────┤
+│    11250075000 │              1 │         150000 │
+└────────────────┴────────────────┴────────────────┘
+Run Time (s): real 0.008 user 0.002559 sys 0.005337
+
+
+==========================================
+Running query: SELECT sum(c_custkey), min(c_custkey), max(c_custkey) FROM 'bench_db/customer.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.042770 sys 0.003938
+┌────────────────┬────────────────┬────────────────┐
+│ sum(c_custkey) │ min(c_custkey) │ max(c_custkey) │
+│     int128     │     int32      │     int32      │
+├────────────────┼────────────────┼────────────────┤
+│    11250075000 │              1 │         150000 │
+└────────────────┴────────────────┴────────────────┘
+Run Time (s): real 0.007 user 0.002302 sys 0.004509
+
+
+==========================================
+Running query: SELECT sum(p_size) FROM 'bench_db/part.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.042086 sys 0.003901
+┌─────────────┐
+│ sum(p_size) │
+│   int128    │
+├─────────────┤
+│     5085421 │
+└─────────────┘
+Run Time (s): real 0.007 user 0.002176 sys 0.004591
+
+
+==========================================
+Running query: SELECT sum(p_size) FROM 'bench_db/part.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.042777 sys 0.003885
+┌─────────────┐
+│ sum(p_size) │
+│   int128    │
+├─────────────┤
+│     5085421 │
+└─────────────┘
+Run Time (s): real 0.006 user 0.002128 sys 0.004488
+
+
+==========================================
+Running query: SELECT sum(p_size) FROM 'bench_db/part.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.042515 sys 0.003670
+┌─────────────┐
+│ sum(p_size) │
+│   int128    │
+├─────────────┤
+│     5085421 │
+└─────────────┘
+Run Time (s): real 0.007 user 0.002332 sys 0.004869
+
+
+==========================================
+Running query: SELECT sum(s_suppkey), sum(s_nationkey), min(s_nationkey), max(s_nationkey) FROM 'bench_db/supplier.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.042100 sys 0.003536
+┌────────────────┬──────────────────┬──────────────────┬──────────────────┐
+│ sum(s_suppkey) │ sum(s_nationkey) │ min(s_nationkey) │ max(s_nationkey) │
+│     int128     │      int128      │      int32       │      int32       │
+├────────────────┼──────────────────┼──────────────────┼──────────────────┤
+│       50005000 │           119353 │                0 │               24 │
+└────────────────┴──────────────────┴──────────────────┴──────────────────┘
+Run Time (s): real 0.001 user 0.000585 sys 0.000549
+
+
+==========================================
+Running query: SELECT sum(s_suppkey), sum(s_nationkey), min(s_nationkey), max(s_nationkey) FROM 'bench_db/supplier.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.014 user 0.042985 sys 0.004855
+┌────────────────┬──────────────────┬──────────────────┬──────────────────┐
+│ sum(s_suppkey) │ sum(s_nationkey) │ min(s_nationkey) │ max(s_nationkey) │
+│     int128     │      int128      │      int32       │      int32       │
+├────────────────┼──────────────────┼──────────────────┼──────────────────┤
+│       50005000 │           119353 │                0 │               24 │
+└────────────────┴──────────────────┴──────────────────┴──────────────────┘
+Run Time (s): real 0.001 user 0.000630 sys 0.000578
+
+
+==========================================
+Running query: SELECT sum(s_suppkey), sum(s_nationkey), min(s_nationkey), max(s_nationkey) FROM 'bench_db/supplier.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.012 user 0.039504 sys 0.003485
+┌────────────────┬──────────────────┬──────────────────┬──────────────────┐
+│ sum(s_suppkey) │ sum(s_nationkey) │ min(s_nationkey) │ max(s_nationkey) │
+│     int128     │      int128      │      int32       │      int32       │
+├────────────────┼──────────────────┼──────────────────┼──────────────────┤
+│       50005000 │           119353 │                0 │               24 │
+└────────────────┴──────────────────┴──────────────────┴──────────────────┘
+Run Time (s): real 0.001 user 0.000599 sys 0.000570
+
+
+==========================================
+Running query: SELECT * FROM 'bench_db/region.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.012 user 0.043752 sys 0.004016
+┌─────────────┬─────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ r_regionkey │   r_name    │                                                      r_comment                                                      │
+│    int32    │   varchar   │                                                       varchar                                                       │
+├─────────────┼─────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│           0 │ AFRICA      │ lar deposits. blithely final packages cajole. regular waters are final requests. regular accounts are according to  │
+│           1 │ AMERICA     │ hs use ironic, even requests. s                                                                                     │
+│           2 │ ASIA        │ ges. thinly even pinto beans ca                                                                                     │
+│           3 │ EUROPE      │ ly final courts cajole furiously final excuse                                                                       │
+│           4 │ MIDDLE EAST │ uickly special accounts cajole carefully blithely close requests. carefully final asymptotes haggle furiousl        │
+└─────────────┴─────────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+Run Time (s): real 0.000 user 0.000377 sys 0.000202
+
+
+==========================================
+Running query: SELECT * FROM 'bench_db/region.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.012 user 0.040889 sys 0.003745
+┌─────────────┬─────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ r_regionkey │   r_name    │                                                      r_comment                                                      │
+│    int32    │   varchar   │                                                       varchar                                                       │
+├─────────────┼─────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│           0 │ AFRICA      │ lar deposits. blithely final packages cajole. regular waters are final requests. regular accounts are according to  │
+│           1 │ AMERICA     │ hs use ironic, even requests. s                                                                                     │
+│           2 │ ASIA        │ ges. thinly even pinto beans ca                                                                                     │
+│           3 │ EUROPE      │ ly final courts cajole furiously final excuse                                                                       │
+│           4 │ MIDDLE EAST │ uickly special accounts cajole carefully blithely close requests. carefully final asymptotes haggle furiousl        │
+└─────────────┴─────────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+Run Time (s): real 0.000 user 0.000378 sys 0.000197
+
+
+==========================================
+Running query: SELECT * FROM 'bench_db/region.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.011 user 0.040986 sys 0.003519
+┌─────────────┬─────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ r_regionkey │   r_name    │                                                      r_comment                                                      │
+│    int32    │   varchar   │                                                       varchar                                                       │
+├─────────────┼─────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│           0 │ AFRICA      │ lar deposits. blithely final packages cajole. regular waters are final requests. regular accounts are according to  │
+│           1 │ AMERICA     │ hs use ironic, even requests. s                                                                                     │
+│           2 │ ASIA        │ ges. thinly even pinto beans ca                                                                                     │
+│           3 │ EUROPE      │ ly final courts cajole furiously final excuse                                                                       │
+│           4 │ MIDDLE EAST │ uickly special accounts cajole carefully blithely close requests. carefully final asymptotes haggle furiousl        │
+└─────────────┴─────────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+Run Time (s): real 0.001 user 0.000419 sys 0.000238
+
+
+==========================================
+Running query: SELECT sum(r_regionkey) FROM 'bench_db/region.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.013 user 0.043714 sys 0.006405
+┌──────────────────┐
+│ sum(r_regionkey) │
+│      int128      │
+├──────────────────┤
+│               10 │
+└──────────────────┘
+Run Time (s): real 0.001 user 0.000451 sys 0.000232
+
+
+==========================================
+Running query: SELECT sum(r_regionkey) FROM 'bench_db/region.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.010 user 0.041560 sys 0.003737
+┌──────────────────┐
+│ sum(r_regionkey) │
+│      int128      │
+├──────────────────┤
+│               10 │
+└──────────────────┘
+Run Time (s): real 0.001 user 0.000382 sys 0.000230
+
+
+==========================================
+Running query: SELECT sum(r_regionkey) FROM 'bench_db/region.arrow';
+==========================================
+Should compile queries: 0(no), 1(yes)
+Compile queries set to: 0
+Run Time (s): real 0.013 user 0.043461 sys 0.004164
+┌──────────────────┐
+│ sum(r_regionkey) │
+│      int128      │
+├──────────────────┤
+│               10 │
+└──────────────────┘
+Run Time (s): real 0.000 user 0.000390 sys 0.000221
+
+
+All queries completed! Results saved to bench_results.txt
