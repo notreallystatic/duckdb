@@ -367,3 +367,6 @@ tools/pythonpkg/duckdb_build/
 build*/
 
 bench_db/
+
+# meta data for project
+meta/
