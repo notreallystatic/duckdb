@@ -66,13 +66,15 @@ if(AMALGAMATION_BUILD)
     duckdb PROPERTIES VERSION ${DUCKDB_VERSION_NUMBER}
                       SOVERSION ${DUCKDB_MAJOR_VERSION}.${DUCKDB_MINOR_VERSION})
   # target_link_libraries(duckdb ${DUCKDB_SYSTEM_LIBS})
-  target_link_libraries(duckdb mlir_util ${DUCKDB_SYSTEM_LIBS} ${LIBS} ${LLVM_LINK_COMPONENTS})
+  target_link_libraries(duckdb mlir_util ${DUCKDB_SYSTEM_LIBS} ${LIBS}
+                        ${LLVM_LINK_COMPONENTS})
   link_threads(duckdb PUBLIC)
   link_extension_libraries(duckdb PRIVATE)
 
   add_library(duckdb_static STATIC
               "${PROJECT_SOURCE_DIR}/src/amalgamation/duckdb.cpp")
-  target_link_libraries(duckdb_static mlir_util ${DUCKDB_SYSTEM_LIBS} ${LIBS} ${LLVM_LINK_COMPONENTS})
+  target_link_libraries(duckdb_static mlir_util ${DUCKDB_SYSTEM_LIBS} ${LIBS}
+                        ${LLVM_LINK_COMPONENTS})
   link_threads(duckdb_static PUBLIC)
   link_extension_libraries(duckdb_static PUBLIC)
 
@@ -145,7 +147,8 @@ else()
   link_extension_libraries(duckdb PRIVATE)
 
   add_library(duckdb_static STATIC ${ALL_OBJECT_FILES})
-  target_link_libraries(duckdb_static PUBLIC mlir_util ${LIBS} ${DUCKDB_LINK_LIBS})
+  target_link_libraries(duckdb_static PUBLIC mlir_util ${LIBS}
+                                             ${DUCKDB_LINK_LIBS})
   link_threads(duckdb_static PUBLIC)
   link_extension_libraries(duckdb_static PUBLIC)
 
@@ -170,7 +173,17 @@ else()
 endif()
 
 install(
-  TARGETS duckdb duckdb_static lingodb_ext mlir_util runner scheduler MLIRSQLFrontend pg_query catalog mlirTypes ${LINGODB_INTERNAL_LIBS}
+  TARGETS duckdb
+          duckdb_static
+          lingodb_ext
+          mlir_util
+          runner
+          scheduler
+          MLIRSQLFrontend
+          pg_query
+          catalog
+          mlirTypes
+          ${LINGODB_INTERNAL_LIBS}
   EXPORT "${DUCKDB_EXPORT_SET}"
   LIBRARY DESTINATION "${INSTALL_LIB_DIR}"
   ARCHIVE DESTINATION "${INSTALL_LIB_DIR}"

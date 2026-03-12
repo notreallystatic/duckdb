@@ -572,8 +572,7 @@ def load_result_from_file(fname, result: QueryResult):
         struct_definition += f"c{i} := VARCHAR"
     struct_definition += ")"
 
-    csv_result = con.execute(
-        f"""
+    csv_result = con.execute(f"""
         SELECT * FROM read_csv(
             '{fname}',
             header=1,
@@ -582,8 +581,7 @@ def load_result_from_file(fname, result: QueryResult):
             auto_detect=false,
             all_varchar=true
         )
-    """
-    )
+    """)
 
     return csv_result.fetchall()
 

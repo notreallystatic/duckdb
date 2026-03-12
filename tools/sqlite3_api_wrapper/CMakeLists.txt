@@ -38,12 +38,9 @@ endif()
 include_directories(../../third_party/catch)
 
 # TODO: Throwing a linker error, so ignoring right now
-# include_directories(test/include)
-# add_subdirectory(test)
+# include_directories(test/include) add_subdirectory(test)
 
-# add_executable(test_sqlite3_api_wrapper ${SQLITE_TEST_FILES})
-# if(WIN32 OR ZOS)
-#   target_link_libraries(test_sqlite3_api_wrapper sqlite3_api_wrapper_static)
-# else()
-#   target_link_libraries(test_sqlite3_api_wrapper sqlite3_api_wrapper)
+# add_executable(test_sqlite3_api_wrapper ${SQLITE_TEST_FILES}) if(WIN32 OR ZOS)
+# target_link_libraries(test_sqlite3_api_wrapper sqlite3_api_wrapper_static)
+# else() target_link_libraries(test_sqlite3_api_wrapper sqlite3_api_wrapper)
 # endif()
