@@ -20,7 +20,13 @@ mlir::Value BoundConstantExpression::translateExpression(MLIRTranslationContext&
 			loc, builder.getI32Type(), builder.getI32IntegerAttr(value.GetValue<int32_t>()));
 		break;
 	}
-	case LogicalTypeId::VARCHAR:
+	case LogicalTypeId::VARCHAR: {
+		auto strVal = value.GetValue<string>();
+		auto strType = lingodb::compiler::dialect::db::StringType::get(builder.getContext());
+		return builder.create<lingodb::compiler::dialect::db::ConstantOp>(loc, strType,
+			builder.getStringAttr(strVal));
+		break;
+	}
 	case LogicalTypeId::CHAR: {
 		auto strVal = value.GetValue<string>();
 		auto strType = lingodb::compiler::dialect::db::CharType::get(builder.getContext(), strVal.size());

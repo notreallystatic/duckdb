@@ -6,6 +6,7 @@
 #include "duckdb/common/serializer/serializer.hpp"
 #include "duckdb/common/serializer/deserializer.hpp"
 #include "duckdb/function/lambda_functions.hpp"
+#include "duckdb/function/scalar/string_functions.hpp"
 
 namespace duckdb {
 
@@ -29,11 +30,6 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 	for (size_t i = 0; i < children.size(); i++) {
 		std::cout << "[BoundFunctionExpression::translateExpression] Argument " << i << " :: " << children[i]->ToString() << std::endl;
 	}
-	Value result;
-	bool isEvaluated = ExpressionExecutor::TryEvaluateScalar(*translationContext.clientContext, *this, result);
-	std::cout << "[BoundFunctionExpression::translateExpression] Is function evaluated? :: " << isEvaluated << std::endl;
-	result.Print();
-	std::cout << "[BoundFunctionExpression::scalar function] Function name :: " << function.name << std::endl;
 
 	if (function.name == "to_days") {
 		std::cout << "[BoundFunctionExpression::translateExpression] Translating to_days function" << std::endl;
@@ -65,6 +61,19 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 				return builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, leftVal.getType(), "DateSubtract", mlir::ValueRange({ leftVal, rightVal })).getRes();
 			}
 		}
+	} else if (function.name == LikeFun::Name) {
+		std::cout << "[BoundFunctionExpression::translateExpression] Translating LIKE function" << std::endl;
+		D_ASSERT(children.size() == 2);
+		auto leftVal = children[0]->translateExpression(translationContext, builder);
+		auto rightVal = children[1]->translateExpression(translationContext, builder);
+		return builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, builder.getI1Type(), "Like", mlir::ValueRange({ leftVal, rightVal })).getRes();
+	} else if (function.name == NotLikeFun::Name) {
+		std::cout << "[BoundFunctionExpression::translateExpression] Translating NOT LIKE function" << std::endl;
+		D_ASSERT(children.size() == 2);
+		auto leftVal = children[0]->translateExpression(translationContext, builder);
+		auto rightVal = children[1]->translateExpression(translationContext, builder);
+		auto result = builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, builder.getI1Type(), "Like", mlir::ValueRange({ leftVal, rightVal })).getRes();
+		return builder.create<lingodb::compiler::dialect::db::NotOp>(loc, result).getRes();
 	}
 	std::cout << "[BoundFunctionExpression::translateExpression] Unhandled function :: " << function.name << std::endl;
 	throw std::runtime_error("Unhandled function in MLIR translation :: " + function.name);
