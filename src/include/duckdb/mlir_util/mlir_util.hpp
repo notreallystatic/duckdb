@@ -1,4 +1,4 @@
-
+#pragma once
 
 #include "lingodb/compiler/Dialect/DB/IR/DBDialect.h"
 #include "lingodb/compiler/Dialect/RelAlg/IR/RelAlgDialect.h"
@@ -10,6 +10,7 @@
 #include "lingodb/runtime/Session.h"
 
 #include "mlir/IR/BuiltinDialect.h"
+// #include "duckdb/main/client_context.hpp"
 
 #include <stack>
 #include <unordered_set>
@@ -26,6 +27,7 @@ namespace duckdb {
 struct DefineScope;
 struct TupleScope;
 
+
 void runMLIR();
 
 struct MLIRStringInfo {
@@ -35,8 +37,15 @@ struct MLIRStringInfo {
 	static size_t getHashValue(std::string str);
 };
 
+class ClientContext;
+
 struct MLIRTranslationContext {
 public:
+	// static MLIRTranslationContext &getInstance() {
+	// 	static MLIRTranslationContext instance;
+	// 	return instance;
+	// }
+	duckdb::ClientContext* clientContext;
 	std::stack<mlir::Value> currTuple;
 	std::unordered_set<const lingodb::compiler::dialect::tuples::Column *> useZeroInsteadNull;
 	std::stack<std::vector<std::pair<std::string, const lingodb::compiler::dialect::tuples::Column *>>>

@@ -43,16 +43,16 @@ void LogicalFilter::AddMLIRSpecific(ClientContext &context, LogicalOperatorType 
 	}
 }
 
-mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationContext &translationContext,
-                                mlir::OpBuilder &predBuilder) {
+mlir::Value translateExpression(unique_ptr<Expression>& expr, MLIRTranslationContext& translationContext,
+	mlir::OpBuilder& predBuilder) {
 
-	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
+	auto& mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 	// auto attrManager = mlirContainerInstance.getAttrManager();
 	auto moduleOp = mlirContainerInstance.getModuleOp();
-	lingodb::compiler::dialect::tuples::ColumnManager &attrManager =
-	    moduleOp->getContext()
-	        ->getLoadedDialect<lingodb::compiler::dialect::tuples::TupleStreamDialect>()
-	        ->getColumnManager();
+	lingodb::compiler::dialect::tuples::ColumnManager& attrManager =
+		moduleOp->getContext()
+		->getLoadedDialect<lingodb::compiler::dialect::tuples::TupleStreamDialect>()
+		->getColumnManager();
 
 	auto loc = predBuilder.getUnknownLoc();
 
@@ -63,13 +63,13 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 
 	switch (expressionClass) {
 	case ExpressionClass::BOUND_CONJUNCTION: {
-		auto &bound_conjunction = (BoundConjunctionExpression &)*expr;
+		auto& bound_conjunction = (BoundConjunctionExpression&)*expr;
 		// std::cout << "[translateExpression] BOUND_CONJUNCTION with children size :: "
 		//           << bound_conjunction.children.size() << std::endl;
 		// std::cout << "[translateExpression] BOUND_CONJUNCTION type :: "
 		//           << ExpressionTypeToString(bound_conjunction.type) << std::endl;
 		std::vector<mlir::Value> childExprs;
-		for (auto &child : bound_conjunction.children) {
+		for (auto& child : bound_conjunction.children) {
 			childExprs.push_back(translateExpression(child, translationContext, predBuilder));
 		}
 		switch (bound_conjunction.type) {
@@ -86,7 +86,7 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 		}
 	}
 	case ExpressionClass::BOUND_COMPARISON: {
-		auto &bound_comparison = (BoundComparisonExpression &)*expr;
+		auto& bound_comparison = (BoundComparisonExpression&)*expr;
 		auto left = translateExpression(bound_comparison.left, translationContext, predBuilder);
 		auto right = translateExpression(bound_comparison.right, translationContext, predBuilder);
 		lingodb::compiler::dialect::db::DBCmpPredicate dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::eq;
@@ -115,13 +115,13 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 			//   << ExpressionTypeToString(comparison_type) << std::endl;
 			throw std::runtime_error("Unhandled comparison type");
 		}
-		auto ct = lingodb::compiler::frontend::sql::SQLTypeInference::toCommonBaseTypes(predBuilder, {left, right});
+		auto ct = lingodb::compiler::frontend::sql::SQLTypeInference::toCommonBaseTypes(predBuilder, { left, right });
 		return predBuilder.create<lingodb::compiler::dialect::db::CmpOp>(loc, dbPred, ct[0], ct[1]);
 	}
 	case ExpressionClass::BOUND_COLUMN_REF: {
-		auto &expressionObj = expr->Cast<BoundColumnRefExpression>();
+		auto& expressionObj = expr->Cast<BoundColumnRefExpression>();
 		auto column_name = expr->ToString();
-		auto *columnAttr = translationContext.getAttribute(column_name);
+		auto* columnAttr = translationContext.getAttribute(column_name);
 		// if (columnAttr == nullptr) {
 		// 	std::cout << "[translateExpression] Column not found in resolver :: " << column_name << std::endl;
 		// 	std::cout.flush();
@@ -134,15 +134,15 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 		// std::cout << "\n";
 		// std::cout.flush();
 		return predBuilder.create<lingodb::compiler::dialect::tuples::GetColumnOp>(
-		    loc, columnAttr->type, attrManager.createRef(columnAttr), translationContext.getCurrentTuple());
+			loc, columnAttr->type, attrManager.createRef(columnAttr), translationContext.getCurrentTuple());
 		break;
 	}
 	case ExpressionClass::BOUND_CONSTANT: {
-		auto &expressionObj = expr->Cast<BoundConstantExpression>();
+		auto& expressionObj = expr->Cast<BoundConstantExpression>();
 		switch (expressionObj.value.type().id()) {
 		case LogicalTypeId::INTEGER: {
 			return predBuilder.create<lingodb::compiler::dialect::db::ConstantOp>(
-			    loc, predBuilder.getI32Type(), predBuilder.getI32IntegerAttr(expressionObj.value.GetValue<int32_t>()));
+				loc, predBuilder.getI32Type(), predBuilder.getI32IntegerAttr(expressionObj.value.GetValue<int32_t>()));
 			break;
 		}
 		case LogicalTypeId::VARCHAR:
@@ -150,7 +150,7 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 			auto strVal = expressionObj.value.GetValue<string>();
 			auto strType = lingodb::compiler::dialect::db::CharType::get(predBuilder.getContext(), strVal.size());
 			return predBuilder.create<lingodb::compiler::dialect::db::ConstantOp>(loc, strType,
-			                                                                      predBuilder.getStringAttr(strVal));
+				predBuilder.getStringAttr(strVal));
 			break;
 		}
 		case LogicalTypeId::FLOAT: { // TODO: Testing pending
@@ -162,9 +162,9 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 			// convert the decimal part to an integer by multiplying it with 10^6
 			auto decimalIntPart = static_cast<unsigned long>(decimalPart * 10000000);
 			return predBuilder.create<lingodb::compiler::dialect::db::ConstantOp>(
-			    loc,
-			    lingodb::compiler::dialect::db::DecimalType::get(predBuilder.getContext(), intPart, decimalIntPart),
-			    predBuilder.getStringAttr(expressionValue));
+				loc,
+				lingodb::compiler::dialect::db::DecimalType::get(predBuilder.getContext(), intPart, decimalIntPart),
+				predBuilder.getStringAttr(expressionValue));
 		}
 		default: {
 			// std::cout << "[translateExpression] Unhandled constant type :: " << expressionObj.value.type().ToString()
@@ -175,7 +175,7 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 		break;
 	}
 	case ExpressionClass::BOUND_OPERATOR: {
-		auto &bound_op = (BoundOperatorExpression &)*expr;
+		auto& bound_op = (BoundOperatorExpression&)*expr;
 		if (bound_op.children.size() != 1) {
 			// std::cout << "[translateExpression] BOUND_OPERATOR with unknown children size :: "
 			//   << ExpressionTypeToString(expr->GetExpressionType()) << std::endl;
@@ -186,24 +186,27 @@ mlir::Value translateExpression(unique_ptr<Expression> &expr, MLIRTranslationCon
 			auto isNull = predBuilder.create<lingodb::compiler::dialect::db::IsNullOp>(loc, exprResult);
 			if (bound_op.type == ExpressionType::OPERATOR_IS_NOT_NULL) {
 				return predBuilder.create<lingodb::compiler::dialect::db::NotOp>(loc, isNull);
-			} else if (bound_op.type == ExpressionType::OPERATOR_IS_NULL) {
+			}
+			else if (bound_op.type == ExpressionType::OPERATOR_IS_NULL) {
 				return isNull;
-			} else {
+			}
+			else {
 				// std::cout << "[translateExpression] Unhandled bound operator type :: "
 				//   << ExpressionTypeToString(bound_op.type) << std::endl;
 				throw std::runtime_error("Unhandled bound operator type");
 			}
-		} else {
+		}
+		else {
 			return predBuilder.create<lingodb::compiler::dialect::db::ConstantOp>(
-			    loc, predBuilder.getI1Type(),
-			    predBuilder.getIntegerAttr(predBuilder.getI1Type(),
-			                               bound_op.type == ExpressionType::OPERATOR_IS_NOT_NULL));
+				loc, predBuilder.getI1Type(),
+				predBuilder.getIntegerAttr(predBuilder.getI1Type(),
+					bound_op.type == ExpressionType::OPERATOR_IS_NOT_NULL));
 		}
 	}
 	default: {
-		// std::cout << "[translateExpression] Unhandled expression class :: " <<
-		// ExpressionClassToString(expressionClass)
-		//   << std::endl;
+		std::cout << "[translateExpression] Unhandled expression class :: " <<
+			ExpressionClassToString(expressionClass)
+			<< std::endl;
 	}
 	}
 	return mlir::Value();
@@ -289,6 +292,68 @@ bool LogicalFilter::SplitPredicates(vector<unique_ptr<Expression>> &expressions)
 	// 	}
 	// }
 	// return LogicalFilter::found_conjunction_and = found_conjunction;
+}
+
+/**
+ * Create the relalg.selection operation here for the filter operator.
+ * Reference:
+ * def SelectionOp : RelAlg_Op<"selection",
+        [Pure,Operator,PredicateOperator,TupleLamdaOperator,
+         UnaryOperator,DeclareOpInterfaceMethods<ColumnFoldable>]> {
+    let summary = "selection operation";
+    let description = [{
+        Filter tuple stream, the region returns `1` iff the value should be
+        contained in the output stream.
+    }];
+
+    let arguments = (ins TupleStream:$rel);
+    let results = (outs TupleStream:$result);
+    let regions = (region SizedRegion<1>:$predicate);
+    let assemblyFormat = [{ $rel custom<CustRegion>($predicate) attr-dict-with-keyword }];
+    let extraClassDeclaration = [{
+        mlir::LogicalResult foldColumns(dialect::relalg::ColumnFoldInfo& columnInfo);
+        lingodb::compiler::dialect::relalg::FunctionalDependencies getFDs();
+    }];
+}
+ * In the region, we will have operations that compute the predicate for the filter op.
+ * We call the resolve Value on children and use that value as the input to the predicate operations.
+ */
+void LogicalFilter::resolveMLIRValue(MLIRTranslationContext &translationContext, MLIRTranslationContext::ResolverScope &scope) {
+	for (auto &child : children) {
+		child->resolveMLIRValue(translationContext, scope);
+	}
+
+	if (children.size() != 1) {
+		std::cout << "LogicalFilter should have exactly one child, but found :: " << children.size() << std::endl;
+		return;
+	}
+	auto inputValue = children[0]->getMLIRValue();
+
+	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
+	auto &builder = mlirContainerInstance.getBuilder();
+	auto loc = builder.getUnknownLoc();
+
+	auto selectionOp = builder.create<lingodb::compiler::dialect::relalg::SelectionOp>(
+		loc, lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext()), inputValue
+	);
+	auto *predBlock = new mlir::Block();
+	mlir::OpBuilder predBuilder(builder.getContext());
+	predBlock->addArgument(lingodb::compiler::dialect::tuples::TupleType::get(builder.getContext()), loc);
+	auto tupleScope = translationContext.createTupleScope();
+	translationContext.setCurrentTuple(predBlock->getArgument(0));
+	predBuilder.setInsertionPointToStart(predBlock);
+
+	// Add the expression and return it as a result.
+	mlir::Value resultExpr = expressions[0]->translateExpression(translationContext, predBuilder);
+	predBuilder.create<lingodb::compiler::dialect::tuples::ReturnOp>(loc, resultExpr);
+	selectionOp.getPredicate().push_back(predBlock);
+
+	this->mlirValue = selectionOp.getResult();
+
+	std::cout << "LogicalFilter MLIR Value :: " << std::endl;
+	std::cout.flush();
+	this->mlirValue.print(llvm::outs());
+	std::cout << std::endl;
 }
 
 } // namespace duckdb

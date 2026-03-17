@@ -17,6 +17,7 @@ class BoundConstantExpression : public Expression {
 public:
 	static constexpr const ExpressionClass TYPE = ExpressionClass::BOUND_CONSTANT;
 
+	mlir::Value translateExpression(MLIRTranslationContext &translationContext, mlir::OpBuilder &builder) override;
 public:
 	explicit BoundConstantExpression(Value value);
 

@@ -13,6 +13,12 @@
 #include "duckdb/common/vector.hpp"
 #include "duckdb/common/helper.hpp"
 
+#include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/Dialect.h"
+
 
 namespace duckdb {
 
@@ -577,6 +583,6 @@ struct aggregate_state_t {
 	vector<LogicalType> bound_argument_types;
 };
 
-
+mlir::Type getMLIRTypeFromDuckDBLogicalType(const LogicalType &type, mlir::MLIRContext *context);
 
 } // namespace duckdb

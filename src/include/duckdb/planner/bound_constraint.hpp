@@ -22,6 +22,7 @@ public:
 
 	ConstraintType type;
 
+
 public:
 	template <class TARGET>
 	TARGET &Cast() {

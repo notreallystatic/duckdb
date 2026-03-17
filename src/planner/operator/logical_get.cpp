@@ -34,33 +34,8 @@
 
 namespace duckdb {
 
-mlir::Type convertDuckDBTypeToMLIRType(const LogicalType &type, mlir::MLIRContext *context) {
-	switch (type.id()) {
-	case LogicalTypeId::BOOLEAN:
-		return mlir::IntegerType::get(context, 1);
-	case LogicalTypeId::TINYINT:
-		return mlir::IntegerType::get(context, 8);
-	case LogicalTypeId::SMALLINT:
-		return mlir::IntegerType::get(context, 16);
-	case LogicalTypeId::INTEGER:
-		return mlir::IntegerType::get(context, 32);
-	case LogicalTypeId::BIGINT:
-		return mlir::IntegerType::get(context, 64);
-	case LogicalTypeId::HUGEINT:
-		return mlir::IntegerType::get(context, 128);
-	case LogicalTypeId::FLOAT:
-		return mlir::Float32Type::get(context);
-	case LogicalTypeId::DOUBLE:
-		return mlir::Float64Type::get(context);
-	case LogicalTypeId::VARCHAR:
-		return lingodb::compiler::dialect::db::StringType::get(context);
-	default:
-		throw InternalException("Unsupported type for MLIR conversion");
-	}
-}
-
 mlir::Type convertDuckDBTypeToNullableType(const LogicalType &type, mlir::MLIRContext *context) {
-	auto baseType = convertDuckDBTypeToMLIRType(type, context);
+	auto baseType = getMLIRTypeFromDuckDBLogicalType(type, context);
 	return lingodb::compiler::dialect::db::NullableType::get(context, baseType);
 }
 
@@ -625,6 +600,54 @@ string LogicalGet::GetName() const {
 	}
 #endif
 	return StringUtil::Upper(function.name);
+}
+
+// relalg.basetable  {rows = 0x4156E48FC0000000 : f64, table_identifier = "lineitem"} columns: {l_comment => @lineitem::@l_comment({type = !db.string}), l_commitdate => @lineitem::@l_commitdate({type = !db.date<day>}), l_discount => @lineitem::@l_discount({type = !db.decimal<12, 2>}), l_extendedprice => @lineitem::@l_extendedprice({type = !db.decimal<12, 2>}), l_linenumber => @lineitem::@l_linenumber({type = i32}), l_linestatus => @lineitem::@l_linestatus({type = !db.char<1>}), l_orderkey => @lineitem::@l_orderkey({type = i32}), l_partkey => @lineitem::@l_partkey({type = i32}), l_quantity => @lineitem::@l_quantity({type = !db.decimal<12, 2>}), l_receiptdate => @lineitem::@l_receiptdate({type = !db.date<day>}), l_returnflag => @lineitem::@l_returnflag({type = !db.char<1>}), l_shipdate => @lineitem::@l_shipdate({type = !db.date<day>}), l_shipinstruct => @lineitem::@l_shipinstruct({type = !db.char<25>}), l_shipmode => @lineitem::@l_shipmode({type = !db.char<10>}), l_suppkey => @lineitem::@l_suppkey({type = i32}), l_tax => @lineitem::@l_tax({type = !db.decimal<12, 2>})}
+// For the time being, we just want to set the mlirValue to the base table op.
+/**
+ * NOTE:
+ * 	- This works fine for the most part.
+ * - Some of the i32 types are being converted to i64, need to see if that will cause an issue or not.
+ */
+void LogicalGet::resolveMLIRValue(MLIRTranslationContext &translationContext, MLIRTranslationContext::ResolverScope &scope) {
+	std::cout << "[LogicalGet](resolveMLIRValue) :: " << GetName() << std::endl;
+	const string table_name = getTableName();
+	const string scope_name = table_name;
+
+	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
+	D_ASSERT(mlirContainerInstance.getContextPtr() != nullptr);
+
+	auto &mlirContext = mlirContainerInstance.getContext();
+	auto &builder = mlirContainerInstance.getBuilder();
+	auto module = mlirContainerInstance.getModuleOp();
+	lingodb::compiler::dialect::tuples::ColumnManager& attrManager =
+		module.getContext()
+		->getLoadedDialect<lingodb::compiler::dialect::tuples::TupleStreamDialect>()
+		->getColumnManager();
+
+	std::vector<mlir::NamedAttribute> columns;
+	for (auto &col : column_ids) {
+		auto colName = GetColumnName(col);
+		auto localColType = GetColumnType(col);
+		auto colType = getMLIRTypeFromDuckDBLogicalType(localColType, &mlirContext);
+
+		auto attrDef = attrManager.createDef(scope_name, colName);
+		attrDef.getColumn().type = colType;
+		columns.push_back(builder.getNamedAttr(colName, attrDef));
+		translationContext.mapAttribute(scope, colName, &attrDef.getColumn());
+		translationContext.mapAttribute(scope, table_name + "." + colName, &attrDef.getColumn());
+	}
+
+	this->mlirValue = builder.create<lingodb::compiler::dialect::relalg::BaseTableOp>(
+	    builder.getUnknownLoc(),
+	    lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext()), table_name,
+	    builder.getDictionaryAttr(columns));
+
+	// Print the mlie value so far
+	std::cout << "[LogicalGet](resolveMLIRValue) BaseTableOp MLIR Value :: ";
+	std::cout.flush();
+	this->mlirValue.print(llvm::outs());
+	std::cout << std::endl;
 }
 
 } // namespace duckdb

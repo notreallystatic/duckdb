@@ -288,4 +288,11 @@ unique_ptr<LogicalOperator> LogicalOperator::Copy(ClientContext &context) const 
 	return op_copy;
 }
 
+void LogicalOperator::resolveMLIRValue(MLIRTranslationContext &translationContext, MLIRTranslationContext::ResolverScope &scope) {
+	std::cout << "[LogicalOperator](resolveMLIRValue) :: " << LogicalOperatorToString(type) << std::endl;
+	for (const auto &child : children) {
+		child->resolveMLIRValue(translationContext, scope);
+	}
+}
+
 } // namespace duckdb

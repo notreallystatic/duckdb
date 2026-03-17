@@ -20,6 +20,7 @@ class BoundColumnRefExpression : public Expression {
 public:
 	static constexpr const ExpressionClass TYPE = ExpressionClass::BOUND_COLUMN_REF;
 
+	mlir::Value translateExpression(MLIRTranslationContext &translationContext, mlir::OpBuilder &builder) override;
 public:
 	BoundColumnRefExpression(LogicalType type, ColumnBinding binding, idx_t depth = 0);
 	BoundColumnRefExpression(string alias, LogicalType type, ColumnBinding binding, idx_t depth = 0);

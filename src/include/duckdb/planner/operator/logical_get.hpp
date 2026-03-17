@@ -73,6 +73,7 @@ public:
 	const string &GetColumnName(const ColumnIndex &column_index) const;
 
 public:
+	void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&) override;
 	void Walk(int depth = 0) override;
 	string getTableName();
 	void AddMLIR(ClientContext &context, unique_ptr<LogicalOperator> &og_tree, int depth = 0) override;

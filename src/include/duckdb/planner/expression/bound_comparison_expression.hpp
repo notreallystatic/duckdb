@@ -16,6 +16,8 @@ class BoundComparisonExpression : public Expression {
 public:
 	static constexpr const ExpressionClass TYPE = ExpressionClass::BOUND_COMPARISON;
 
+	mlir::Value translateExpression(MLIRTranslationContext &translationContext, mlir::OpBuilder &builder) override;
+
 public:
 	BoundComparisonExpression(ExpressionType type, unique_ptr<Expression> left, unique_ptr<Expression> right);
 

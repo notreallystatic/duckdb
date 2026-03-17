@@ -11,6 +11,22 @@ BoundColumnRefExpression::BoundColumnRefExpression(string alias_p, LogicalType t
 	this->alias = std::move(alias_p);
 }
 
+mlir::Value BoundColumnRefExpression::translateExpression(MLIRTranslationContext &translationContext, mlir::OpBuilder &predBuilder) {
+	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
+	auto moduleOp = mlirContainerInstance.getModuleOp();
+	lingodb::compiler::dialect::tuples::ColumnManager &attrManager =
+	    moduleOp->getContext()
+	        ->getLoadedDialect<lingodb::compiler::dialect::tuples::TupleStreamDialect>()
+	        ->getColumnManager();
+	auto loc = predBuilder.getUnknownLoc();
+
+	auto column_name = this->ToString();
+	auto* columnAttr = translationContext.getAttribute(column_name);
+	auto currentTuple = translationContext.getCurrentTuple();
+	return predBuilder.create<lingodb::compiler::dialect::tuples::GetColumnOp>(
+		loc, columnAttr->type, attrManager.createRef(columnAttr), translationContext.getCurrentTuple());
+}
+
 BoundColumnRefExpression::BoundColumnRefExpression(LogicalType type, ColumnBinding binding, idx_t depth)
     : BoundColumnRefExpression(string(), std::move(type), binding, depth) {
 }

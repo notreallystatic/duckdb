@@ -405,6 +405,20 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 	if (!logical_planner.properties.bound_all_parameters) {
 		return result;
 	}
+
+	try {
+		logical_plan->Walk(0);
+	} catch (std::exception &ex) {
+		std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
+	}
+	try {
+		MLIRTranslationContext translationContext;
+		translationContext.clientContext = this;
+		auto scope = translationContext.createResolverScope();
+		logical_plan->resolveMLIRValue(translationContext, scope);
+	} catch (std::exception &ex) {
+		std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
+	}
 #ifdef DEBUG
 	logical_plan->Verify(*this);
 #endif
@@ -420,9 +434,9 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 		logical_plan->Verify(*this);
 #endif
 	}
-	// logical_plan->Walk(0);
 
 	// The logical plan is not optimized. We can compile the query now.
+
 	if (compile_queries) {
 		lingodb::execution::MLIRContainer::reset();
 		profiler.StartPhase(MetricsType::COMPILE_AND_RUN_QUERIES);
@@ -431,7 +445,7 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 		// lingodb::execution::MLIRContainer::reset();
 
 		// std::cout << "[ClientContext] (CreatePreparedStatementInternal) Compiling the logical plan now :: \n";
-		logical_plan->AddMLIR(*this, logical_plan, 0);
+		// logical_plan->AddMLIR(*this, logical_plan, 0);
 
 		profiler.EndPhase();
 		if (statement_type == StatementType::SELECT_STATEMENT) {

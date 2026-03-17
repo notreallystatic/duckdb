@@ -9,6 +9,53 @@ BoundConstantExpression::BoundConstantExpression(Value value_p)
       value(std::move(value_p)) {
 }
 
+mlir::Value BoundConstantExpression::translateExpression(MLIRTranslationContext& translationContext,
+	mlir::OpBuilder& builder) {
+	auto& mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
+	auto loc = builder.getUnknownLoc();
+
+	switch (return_type.id()) {
+	case LogicalTypeId::INTEGER: {
+		return builder.create<lingodb::compiler::dialect::db::ConstantOp>(
+			loc, builder.getI32Type(), builder.getI32IntegerAttr(value.GetValue<int32_t>()));
+		break;
+	}
+	case LogicalTypeId::VARCHAR:
+	case LogicalTypeId::CHAR: {
+		auto strVal = value.GetValue<string>();
+		auto strType = lingodb::compiler::dialect::db::CharType::get(builder.getContext(), strVal.size());
+		return builder.create<lingodb::compiler::dialect::db::ConstantOp>(loc, strType,
+			builder.getStringAttr(strVal));
+		break;
+	}
+	case LogicalTypeId::FLOAT: { // TODO: Testing pending
+		string expressionValue = value.ToString();
+		auto floatVal = value.GetValue<float>();
+		// get the integer part and decimal part of the floatVal
+		auto intPart = static_cast<unsigned long>(floatVal);
+		auto decimalPart = floatVal - intPart;
+		// convert the decimal part to an integer by multiplying it with 10^6
+		auto decimalIntPart = static_cast<unsigned long>(decimalPart * 10000000);
+		return builder.create<lingodb::compiler::dialect::db::ConstantOp>(
+			loc,
+			lingodb::compiler::dialect::db::DecimalType::get(builder.getContext(), intPart, decimalIntPart),
+			builder.getStringAttr(expressionValue));
+	}
+	case LogicalTypeId::DATE: {
+		auto dateVal = value.GetValue<date_t>();
+		auto type = getMLIRTypeFromDuckDBLogicalType(value.type(), builder.getContext());
+		return builder.create<lingodb::compiler::dialect::db::ConstantOp>(
+			loc, type,
+			builder.getStringAttr(value.ToString()));
+	}
+	default: {
+		std::cout << "[BoundConstantExpression::translateExpression] Unhandled constant type :: " << value.type().ToString()
+			<< std::endl;
+		break;
+	}
+	}
+}
+
 string BoundConstantExpression::ToString() const {
 	return value.ToSQLString();
 }

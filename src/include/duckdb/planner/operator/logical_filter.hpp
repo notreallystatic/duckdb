@@ -18,7 +18,7 @@ public:
 	static constexpr const LogicalOperatorType TYPE = LogicalOperatorType::LOGICAL_FILTER;
 
 public:
-	void Walk(int depth = 0);
+	void Walk(int depth = 0) override;
 	explicit LogicalFilter(unique_ptr<Expression> expression);
 	LogicalFilter();
 
@@ -27,6 +27,7 @@ public:
 	vector<idx_t> projection_map;
 
 public:
+	void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&) override;
 	void AddMLIRSpecific(ClientContext &context, LogicalOperatorType operator_to_process,
 	                     unique_ptr<LogicalOperator> &og_tree, MLIRTranslationContext &mlir_context,
 	                     int depth = 0) override;

@@ -28,6 +28,8 @@ public:
 	//! The bound cast info
 	BoundCastInfo bound_cast;
 
+	mlir::Value translateExpression(MLIRTranslationContext &translationContext, mlir::OpBuilder &builder) override;
+
 public:
 	LogicalType source_type() { // NOLINT: allow casing for legacy reasons
 		D_ASSERT(child->return_type.IsValid());

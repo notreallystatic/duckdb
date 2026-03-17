@@ -63,6 +63,13 @@ Expression::Expression(ExpressionType type, ExpressionClass expression_class, Lo
 Expression::~Expression() {
 }
 
+mlir::Value Expression::translateExpression(MLIRTranslationContext &context, mlir::OpBuilder &builder) {
+	// Base implementation does nothing, individual expression types can override this to provide their own translation logic.
+	std::cout << "[Expression::translateExpression] Base Expression translation called for expression of type :: " << ToString()
+	          << std::endl;
+	return mlir::Value();
+}
+
 bool Expression::IsAggregate() const {
 	bool is_aggregate = false;
 	ExpressionIterator::EnumerateChildren(*this, [&](const Expression &child) { is_aggregate |= child.IsAggregate(); });

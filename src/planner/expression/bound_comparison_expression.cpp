@@ -9,6 +9,50 @@ BoundComparisonExpression::BoundComparisonExpression(ExpressionType type, unique
       right(std::move(right)) {
 }
 
+mlir::Value BoundComparisonExpression::translateExpression(MLIRTranslationContext &translationContext,
+															mlir::OpBuilder &predBuilder) {
+
+	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
+	auto moduleOp = mlirContainerInstance.getModuleOp();
+	lingodb::compiler::dialect::tuples::ColumnManager &attrManager =
+	    moduleOp->getContext()
+	        ->getLoadedDialect<lingodb::compiler::dialect::tuples::TupleStreamDialect>()
+	        ->getColumnManager();
+	auto loc = predBuilder.getUnknownLoc();
+
+	auto leftMLIRValue = left->translateExpression(translationContext, predBuilder);
+	auto rightMLIRValue = right->translateExpression(translationContext, predBuilder);
+
+	lingodb::compiler::dialect::db::DBCmpPredicate dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::eq;
+	auto comparison_type = GetExpressionType();
+	switch (comparison_type) {
+	case ExpressionType::COMPARE_EQUAL:
+		dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::eq;
+		break;
+	case ExpressionType::COMPARE_NOTEQUAL:
+		dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::neq;
+		break;
+	case ExpressionType::COMPARE_LESSTHAN:
+		dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::lt;
+		break;
+	case ExpressionType::COMPARE_GREATERTHAN:
+		dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::gt;
+		break;
+	case ExpressionType::COMPARE_LESSTHANOREQUALTO:
+		dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::lte;
+		break;
+	case ExpressionType::COMPARE_GREATERTHANOREQUALTO:
+		dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::gte;
+		break;
+	default:
+		std::cout << "[translateExpression] Unhandled comparison type :: " <<
+		ExpressionTypeToString(comparison_type) << std::endl;
+		throw std::runtime_error("Unhandled comparison type");
+	}
+	auto ct = lingodb::compiler::frontend::sql::SQLTypeInference::toCommonBaseTypes(predBuilder, {leftMLIRValue, rightMLIRValue});
+	return predBuilder.create<lingodb::compiler::dialect::db::CmpOp>(loc, dbPred, ct[0], ct[1]);
+}
+
 string BoundComparisonExpression::ToString() const {
 	return ComparisonExpression::ToString<BoundComparisonExpression, Expression>(*this);
 }

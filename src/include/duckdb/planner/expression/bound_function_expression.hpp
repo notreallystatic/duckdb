@@ -33,6 +33,8 @@ public:
 	//! Whether or not the function is an operator, only used for rendering
 	bool is_operator;
 
+	mlir::Value translateExpression(MLIRTranslationContext &translationContext, mlir::OpBuilder &builder) override;
+
 public:
 	bool IsVolatile() const override;
 	bool IsConsistent() const override;
