@@ -12,33 +12,35 @@ mlir::Value BoundOperatorExpression::translateExpression(MLIRTranslationContext&
 	auto& mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 	auto loc = predBuilder.getUnknownLoc();
 
-	if (children.size() != 1) {
-		std::cout << "[BoundOperatorExpression::translateExpression] unknown children size :: "
-			<< ExpressionTypeToString(GetExpressionType()) << std::endl;
-		throw std::runtime_error("BOUND_OPERATOR with unhandled children size");
-	}
-	auto exprResult = children[0]->translateExpression(translationContext, predBuilder);
-	if (mlir::isa<lingodb::compiler::dialect::db::NullableType>(exprResult.getType())) {
-		auto isNull = predBuilder.create<lingodb::compiler::dialect::db::IsNullOp>(loc, exprResult);
-		if (type == ExpressionType::OPERATOR_IS_NOT_NULL) {
-			return predBuilder.create<lingodb::compiler::dialect::db::NotOp>(loc, isNull);
-		}
-		else if (type == ExpressionType::OPERATOR_IS_NULL) {
+	switch (type) {
+	case ExpressionType::OPERATOR_IS_NULL:
+	case ExpressionType::OPERATOR_IS_NOT_NULL: {
+		auto exprResult = children[0]->translateExpression(translationContext, predBuilder);
+		if (mlir::isa<lingodb::compiler::dialect::db::NullableType>(exprResult.getType())) {
+			auto isNull = predBuilder.create<lingodb::compiler::dialect::db::IsNullOp>(loc, exprResult);
+			if (type == ExpressionType::OPERATOR_IS_NOT_NULL) {
+				return predBuilder.create<lingodb::compiler::dialect::db::NotOp>(loc, isNull);
+			}
 			return isNull;
 		}
 		else {
-			std::cout << "[BoundOperatorExpression::translateExpression] Unhandled bound operator type :: "
-				<< ExpressionTypeToString(type) << std::endl;
-			throw std::runtime_error("Unhandled bound operator type");
+			return predBuilder.create<lingodb::compiler::dialect::db::ConstantOp>(
+				loc, predBuilder.getI1Type(),
+				predBuilder.getIntegerAttr(predBuilder.getI1Type(),
+					type == ExpressionType::OPERATOR_IS_NOT_NULL));
 		}
 	}
-	else {
-		return predBuilder.create<lingodb::compiler::dialect::db::ConstantOp>(
-			loc, predBuilder.getI1Type(),
-			predBuilder.getIntegerAttr(predBuilder.getI1Type(),
-				type == ExpressionType::OPERATOR_IS_NOT_NULL));
+	case ExpressionType::COMPARE_IN: {
+		auto leftVal = children[0]->translateExpression(translationContext, predBuilder);
+		std::vector<mlir::Value> rightVals;
+		for (size_t i = 1; i < children.size(); i++) {
+			rightVals.push_back(children[i]->translateExpression(translationContext, predBuilder));
+		}
+		return predBuilder.create<lingodb::compiler::dialect::db::OneOfOp>(loc, leftVal, rightVals);
 	}
-
+	}
+	std::cout << "[BoundOperatorExpression::translateExpression] Unhandled operator :: " << ExpressionTypeToString(type) << std::endl;
+	throw std::runtime_error("Unhandled operator in MLIR translation :: " + ExpressionTypeToString(type));
 }
 
 string BoundOperatorExpression::ToString() const {
