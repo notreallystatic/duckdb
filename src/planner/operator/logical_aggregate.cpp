@@ -20,6 +20,9 @@
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Dialect.h"
 
+namespace relalg = lingodb::compiler::dialect::relalg;
+namespace tuples = lingodb::compiler::dialect::tuples;
+
 namespace duckdb {
 
 LogicalAggregate::LogicalAggregate(idx_t group_index, idx_t aggregate_index, vector<unique_ptr<Expression>> select_list)
@@ -35,9 +38,9 @@ mlir::Type getBaseType(mlir::Type t) {
 	return t;
 }
 
-void LogicalAggregate::AddMLIRSpecific(ClientContext &context, LogicalOperatorType operator_to_process,
-                                       unique_ptr<LogicalOperator> &og_tree, MLIRTranslationContext &translationContext,
-                                       int depth) {
+void LogicalAggregate::AddMLIRSpecific(ClientContext& context, LogicalOperatorType operator_to_process,
+	unique_ptr<LogicalOperator>& og_tree, MLIRTranslationContext& translationContext,
+	int depth) {
 
 	if (type != operator_to_process) {
 		if (children.size() > 0) {
@@ -54,9 +57,9 @@ void LogicalAggregate::AddMLIRSpecific(ClientContext &context, LogicalOperatorTy
 	// std::cout << indent << "[LogicalAggregate](AddMLIRSpecific) :: " << LogicalOperatorToString(type) << std::endl;
 	// std::cout.flush();
 
-	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
-	auto &mapping = mlirContainerInstance.getColumnMapping();
-	auto &builder = mlirContainerInstance.getBuilder();
+	auto& mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
+	auto& mapping = mlirContainerInstance.getColumnMapping();
+	auto& builder = mlirContainerInstance.getBuilder();
 	auto loc = builder.getUnknownLoc();
 	auto module = mlirContainerInstance.getModuleOp();
 	// lingodb::compiler::dialect::
@@ -65,12 +68,12 @@ void LogicalAggregate::AddMLIRSpecific(ClientContext &context, LogicalOperatorTy
 	auto tupleStreamType = lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext());
 	auto tupleType = lingodb::compiler::dialect::tuples::TupleType::get(builder.getContext());
 
-	lingodb::compiler::dialect::tuples::ColumnManager &attrManager =
-	    module->getContext()
-	        ->getLoadedDialect<lingodb::compiler::dialect::tuples::TupleStreamDialect>()
-	        ->getColumnManager();
+	lingodb::compiler::dialect::tuples::ColumnManager& attrManager =
+		module->getContext()
+		->getLoadedDialect<lingodb::compiler::dialect::tuples::TupleStreamDialect>()
+		->getColumnManager();
 	auto tupleScope = translationContext.createTupleScope();
-	auto *block = new mlir::Block();
+	auto* block = new mlir::Block();
 
 	block->addArgument(tupleStreamType, loc);
 	block->addArgument(tupleType, loc);
@@ -88,8 +91,8 @@ void LogicalAggregate::AddMLIRSpecific(ClientContext &context, LogicalOperatorTy
 	string tempNodePrefix = "tmp_attr";
 	string groupByName = "aggr" + std::to_string(groupById++);
 
-	for (const auto &ex : this->expressions) {
-		auto &bound_agg = ex->Cast<BoundAggregateExpression>();
+	for (const auto& ex : this->expressions) {
+		auto& bound_agg = ex->Cast<BoundAggregateExpression>();
 		auto functionName = bound_agg.function.name;
 		// std::cout << indent << "[LogicalAggregate](AddMLIRSpecific) Aggregate Function :: " << functionName
 		//           << std::endl;
@@ -98,35 +101,37 @@ void LogicalAggregate::AddMLIRSpecific(ClientContext &context, LogicalOperatorTy
 		mlir::Value expr;
 		// TODO: verify if this is always the case or not
 		std::string colName =
-		    functionName == "count_star"
-		        ? "*"
-		        : bound_agg.children[0]
-		              ->GetName(); // string columnName = tempNodePrefix + std::to_string(tempNodeId++);
+			functionName == "count_star"
+			? "*"
+			: bound_agg.children[0]
+			->GetName(); // string columnName = tempNodePrefix + std::to_string(tempNodeId++);
 		string columnName = functionName + "(" + colName + ")";
 		auto attrDef = attrManager.createDef(groupByName, columnName);
 
 		if (functionName == "count_star") {
 			expr = aggrBuilder.create<lingodb::compiler::dialect::relalg::CountRowsOp>(loc, builder.getI64Type(),
-			                                                                           relation);
-		} else {
+				relation);
+		}
+		else {
 
 			auto aggrFunc = llvm::StringSwitch<lingodb::compiler::dialect::relalg::AggrFunc>(functionName)
-			                    .Case("sum", lingodb::compiler::dialect::relalg::AggrFunc::sum)
-			                    .Case("min", lingodb::compiler::dialect::relalg::AggrFunc::min)
-			                    .Case("max", lingodb::compiler::dialect::relalg::AggrFunc::max)
-			                    .Case("avg", lingodb::compiler::dialect::relalg::AggrFunc::avg)
-			                    .Case("count_star", lingodb::compiler::dialect::relalg::AggrFunc::count)
-			                    .Default(lingodb::compiler::dialect::relalg::AggrFunc::count);
+				.Case("sum", lingodb::compiler::dialect::relalg::AggrFunc::sum)
+				.Case("min", lingodb::compiler::dialect::relalg::AggrFunc::min)
+				.Case("max", lingodb::compiler::dialect::relalg::AggrFunc::max)
+				.Case("avg", lingodb::compiler::dialect::relalg::AggrFunc::avg)
+				.Case("count_star", lingodb::compiler::dialect::relalg::AggrFunc::count)
+				.Default(lingodb::compiler::dialect::relalg::AggrFunc::count);
 
 			// get column name from the first child expression
 
-			auto *column = translationContext.getAttribute(colName);
+			auto* column = translationContext.getAttribute(colName);
 			lingodb::compiler::dialect::tuples::ColumnRefAttr refAttr = attrManager.createRef(column);
 			mlir::Value curRel = relation;
 			mlir::Type aggrResultType;
 			if (functionName == "count_star") {
 				aggrResultType = builder.getI64Type();
-			} else {
+			}
+			else {
 				aggrResultType = refAttr.getColumn().type;
 				if (functionName == "avg") {
 					auto baseType = getBaseType(aggrResultType);
@@ -134,14 +139,14 @@ void LogicalAggregate::AddMLIRSpecific(ClientContext &context, LogicalOperatorTy
 				}
 				if (!mlir::isa<lingodb::compiler::dialect::db::NullableType>(aggrResultType)) {
 					aggrResultType =
-					    lingodb::compiler::dialect::db::NullableType::get(builder.getContext(), aggrResultType);
+						lingodb::compiler::dialect::db::NullableType::get(builder.getContext(), aggrResultType);
 				}
 				expr = aggrBuilder.create<lingodb::compiler::dialect::relalg::AggrFuncOp>(loc, aggrResultType, aggrFunc,
-				                                                                          curRel, refAttr);
+					curRel, refAttr);
 			}
 		}
 		attrDef.getColumn().type = expr.getType();
-		mapping.push_back({columnName, &attrDef.getColumn()});
+		mapping.push_back({ columnName, &attrDef.getColumn() });
 		createdCols.push_back(attrDef);
 		createdValues.push_back(expr);
 	}
@@ -152,7 +157,7 @@ void LogicalAggregate::AddMLIRSpecific(ClientContext &context, LogicalOperatorTy
 	// std::cout << std::endl;
 	aggrBuilder.create<lingodb::compiler::dialect::tuples::ReturnOp>(loc, createdValues);
 	auto groupByOp = builder.create<lingodb::compiler::dialect::relalg::AggregationOp>(
-	    loc, tupleStreamType, baseTableOp, builder.getArrayAttr(groupByAttrs), builder.getArrayAttr(createdCols));
+		loc, tupleStreamType, baseTableOp, builder.getArrayAttr(groupByAttrs), builder.getArrayAttr(createdCols));
 	groupByOp.getAggrFunc().push_back(block);
 	mlirContainerInstance.aggrBlock = block;
 	mlirContainerInstance.aggrOp = groupByOp.getResult();
@@ -251,9 +256,7 @@ InsertionOrderPreservingMap<string> LogicalAggregate::ParamsToString() const {
 	return result;
 }
 
-idx_t LogicalAggregate::EstimateCardinality(ClientContext &context) {
-	if (groups.empty()) {
-		// ungrouped aggregate
+idx_t LogicalAggregate::EstimateCardinality(ClientContext &context) { if (groups.empty()) { // ungrouped aggregate
 		return 1;
 	}
 	return LogicalOperator::EstimateCardinality(context);
@@ -275,6 +278,249 @@ string LogicalAggregate::GetName() const {
 	}
 #endif
 	return LogicalOperator::GetName();
+}
+
+relalg::AggrFunc getAggrFunc(const string& functionName) {
+	return llvm::StringSwitch<relalg::AggrFunc>(functionName)
+		.Case("sum", relalg::AggrFunc::sum)
+		.Case("min", relalg::AggrFunc::min)
+		.Case("max", relalg::AggrFunc::max)
+		.Case("avg", relalg::AggrFunc::avg)
+		.Case("count_star", relalg::AggrFunc::count)
+		.Default(relalg::AggrFunc::count);
+}
+
+
+/**
+
+SELECT
+    l_returnflag,
+    SUM(l_quantity) AS sum_qty,
+    SUM(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge
+FROM lineitem
+WHERE l_shipdate <= DATE '1998-12-01' - INTERVAL '90' DAY
+GROUP BY
+    l_returnflag,
+    l_linestatus
+LIMIT 10;
+
+┌─────────────────────────────┐
+│┌───────────────────────────┐│
+││ Unoptimized Logical Plan  ││
+│└───────────────────────────┘│
+└─────────────────────────────┘
+┌───────────────────────────┐
+│           LIMIT           │
+│    ────────────────────   │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│        Expressions:       │
+│        l_returnflag       │
+│          sum_qty          │
+│         sum_charge        │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         AGGREGATE         │
+│    ────────────────────   │
+│          Groups:          │
+│        l_returnflag       │
+│        l_linestatus       │
+│                           │
+│        Expressions:       │
+│      sum(l_quantity)      │
+│  sum(((l_extendedprice *  │
+│ (CAST(1 AS DECIMAL(16,2)) │
+│  - l_discount)) * (CAST(1 │
+│  AS DECIMAL(16,2)) + l_tax│
+│            )))            │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│           FILTER          │
+│    ────────────────────   │
+│        Expressions:       │
+│    (CAST(l_shipdate AS    │
+│  TIMESTAMP) <= (CAST('1998│
+│ -12-01' AS DATE) - to_days│
+│  (CAST(trunc(CAST('90' AS │
+│   DOUBLE)) AS INTEGER)))) │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│          SEQ_SCAN         │
+│    ────────────────────   │
+│      Table: lineitem      │
+│   Type: Sequential Scan   │
+└───────────────────────────┘
+ */
+void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationContext, MLIRTranslationContext::ResolverScope &scope) {
+	std::cout << "[LogicalAggregate](resolveMLIRValue) :: Resolving MLIR Value for LogicalAggregate" << std::endl;
+	std::cout.flush();
+
+	if (children.size() != 1) {
+		std::cout << "[LogicalAggregate](resolveMLIRValue) :: Expected exactly one child for LogicalAggregate but found " << children.size() << std::endl;
+		throw std::runtime_error("Expected exactly one child for LogicalAggregate but found " + std::to_string(children.size()));
+	}
+
+	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
+	auto &builder = mlirContainerInstance.getBuilder();
+	auto &context = mlirContainerInstance.getContext();
+	auto module = mlirContainerInstance.getModuleOp();
+	auto loc = builder.getUnknownLoc();
+	tuples::ColumnManager& attrManager =
+		module.getContext()
+		->getLoadedDialect<tuples::TupleStreamDialect>()
+		->getColumnManager();
+	auto tupleStreamType = tuples::TupleStreamType::get(builder.getContext());
+	std::unordered_map<int, const tuples::Column*> resolvedColumnAttrs;
+
+	children[0]->resolveMLIRValue(translationContext, scope);
+	auto childValue = children[0]->getMLIRValue();
+
+	bool isMapOperationRequired = false;
+	for (int i = 0; i < expressions.size(); ++i) {
+		auto& expr = expressions[i];
+		if (expr->expression_class == ExpressionClass::BOUND_AGGREGATE) {
+			auto& bound_agg = expr->Cast<BoundAggregateExpression>();
+			for (const auto& child : bound_agg.children) {
+				if (child->expression_class == ExpressionClass::BOUND_COLUMN_REF) {
+					auto& colRefExpr = child->Cast<BoundColumnRefExpression>();
+					auto columnName = colRefExpr.ToString();
+					auto columnAttr = translationContext.getAttribute(columnName);
+					resolvedColumnAttrs[i] = columnAttr;
+				}
+				else {
+					isMapOperationRequired = true;
+				}
+			}
+		}
+	}
+	std::cout << "[LogicalAggregate](resolveMLIRValue) :: isMapOperationRequired :: " << isMapOperationRequired << std::endl;
+
+	if (isMapOperationRequired) {
+		std::cout << "[LogicalAggregate](resolveMLIRValue) :: Map operation is required to resolve expressions" << std::endl;
+		std::cout.flush();
+		auto* block = new mlir::Block();
+		static size_t mapOpId = 0;
+		static size_t mapArgId = 0;
+		string mapOpName = "map_op_" + std::to_string(mapOpId++);
+
+		mlir::OpBuilder mapBuilder(&context);
+		block->addArgument(tuples::TupleType::get(builder.getContext()), builder.getUnknownLoc());
+		auto tupleScope = translationContext.createTupleScope();
+		mlir::Value tuple = block->getArgument(0);
+		translationContext.setCurrentTuple(tuple);
+
+		mapBuilder.setInsertionPointToStart(block);
+		std::vector<mlir::Value> createdValues;
+		std::vector<mlir::Attribute> createdCols;
+		for (int i = 0; i < expressions.size(); ++i) {
+			auto& expr = expressions[i];
+
+			if (expr->expression_class != ExpressionClass::BOUND_AGGREGATE) {
+				std::cout << "[LogicalAggregate](resolveMLIRValue) :: Currently only supporting BOUND_AGGREGATE expressions but found expression of class " << ExpressionClassToString(expr->expression_class) << std::endl;
+				continue;
+			}
+			auto& bound_agg = expr->Cast<BoundAggregateExpression>();
+			if (bound_agg.children.size() != 1) {
+				std::cout << "[LogicalAggregate](resolveMLIRValue) :: Currently only supporting BOUND_AGGREGATE expressions with exactly one child but found " << bound_agg.children.size() << " children" << std::endl;
+				continue;
+			}
+			auto childExpr = bound_agg.children[0].get();
+			if (childExpr->expression_class == ExpressionClass::BOUND_COLUMN_REF) {
+				continue;
+			}
+			auto resolvedValue = childExpr->translateExpression(translationContext, mapBuilder);
+			createdValues.push_back(resolvedValue);
+			string columnName = "expr_" + std::to_string(mapArgId++);
+			auto attrDef = attrManager.createDef(mapOpName, columnName);
+			attrDef.getColumn().type = resolvedValue.getType();
+			createdCols.push_back(attrDef);
+			resolvedColumnAttrs[i] = &attrDef.getColumn();
+		}
+		auto mapOp = builder.create<relalg::MapOp>(builder.getUnknownLoc(), tupleStreamType, childValue, builder.getArrayAttr(createdCols));
+		mapOp.getRegion().push_back(block);
+		mapBuilder.create<tuples::ReturnOp>(builder.getUnknownLoc(), createdValues);
+		childValue = mapOp.getResult();
+	}
+
+	std::cout << "[LogicalAggregate](resolveMLIRValue) :: child value so far " << std::endl;
+	childValue.print(llvm::outs());
+	std::cout << std::endl;
+	std::cout << "[LogicalAggregate](resolveMLIRValue) :: Creating AggregationOp" << std::endl;
+
+	static size_t aggrOpId = 0;
+	static size_t aggrArgId = 0;
+	string aggrOpName = "aggr_op_" + std::to_string(aggrOpId++);
+
+	std::vector<mlir::Attribute> groupByAttrs;
+	std::vector<mlir::Attribute> aggrAttrs;
+
+	for (int i = 0; i < groups.size(); ++i) {
+		auto& groupByExpr = groups[i];
+		if (groupByExpr->expression_class != ExpressionClass::BOUND_COLUMN_REF) {
+			std::cout << "[LogicalAggregate](resolveMLIRValue) :: Skipping group by expression of class " << ExpressionClassToString(groupByExpr->expression_class) << " since only column reference expressions are supported in group by for now" << std::endl;
+			continue;
+		}
+		auto& colRefExpr = groupByExpr->Cast<BoundColumnRefExpression>();
+		auto columnName = colRefExpr.ToString();
+		std::cout << "[LogicalAggregate](resolveMLIRValue) :: Group by column name :: " << columnName << std::endl;
+		auto columnAttr = translationContext.getAttribute(columnName);
+		groupByAttrs.push_back(attrManager.createRef(columnAttr));
+	}
+	for (int i = 0; i < expressions.size(); ++i) {
+		string columnName = "aggr_arg_" + std::to_string(aggrArgId++);
+		auto attrDef = attrManager.createDef(aggrOpName, columnName);
+		auto columnDef = resolvedColumnAttrs[i];
+		attrDef.getColumn().type = columnDef->type;
+		aggrAttrs.push_back(attrDef);
+	}
+
+	auto aggrOp = builder.create<relalg::AggregationOp>(loc,
+		tupleStreamType,
+		childValue,
+		builder.getArrayAttr(groupByAttrs),
+		builder.getArrayAttr(aggrAttrs)
+	);
+
+	mlir::Block *aggrBlock = new mlir::Block();
+	aggrBlock->addArgument(tupleStreamType, loc);
+	aggrBlock->addArgument(tuples::TupleType::get(builder.getContext()), loc);
+
+	mlir::OpBuilder aggrBuilder(builder.getContext());
+	aggrBuilder.setInsertionPointToStart(aggrBlock);
+
+	mlir::Value relArg = aggrBlock->getArgument(0);
+
+	std::vector<mlir::Value> resultValues;
+	for (int i = 0; i < expressions.size(); ++i) {
+		auto &expr = expressions[i];
+		if (expr->expression_class != ExpressionClass::BOUND_AGGREGATE) {
+			std::cout << "[LogicalAggregate](resolveMLIRValue) :: Skipping expression of class " << ExpressionClassToString(expr->expression_class) << " since only BOUND_AGGREGATE expressions are supported" << std::endl;
+			continue;
+		}
+		auto &bound_agg = expr->Cast<BoundAggregateExpression>();
+		auto functionName = bound_agg.function.name;
+		relalg::AggrFunc aggrFunc = getAggrFunc(functionName);
+		auto columnDef = resolvedColumnAttrs[i];
+
+		auto val = aggrBuilder.create<relalg::AggrFuncOp>(builder.getUnknownLoc(),
+			columnDef->type,
+			aggrFunc,
+			relArg,
+			attrManager.createRef(columnDef)
+		);
+		resultValues.push_back(val);
+	}
+
+	aggrBuilder.create<tuples::ReturnOp>(builder.getUnknownLoc(), mlir::ValueRange(resultValues));
+	aggrOp.getAggrFunc().push_back(aggrBlock);
+	this->mlirValue = aggrOp.getResult();
+
+	std::cout << "[LogicalAggregate](resolveMLIRValue) :: Created AggregationOp with name " << aggrOpName << std::endl;
+	std::cout.flush();
+	this->mlirValue.print(llvm::outs());
+	std::cout << std::endl;
 }
 
 } // namespace duckdb

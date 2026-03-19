@@ -20,11 +20,19 @@ mlir::Value BoundCastExpression::translateExpression(MLIRTranslationContext& tra
 	auto loc = builder.getUnknownLoc();
 	std::cout << "[BoundCastExpression::translateExpression] Translating cast from " << child->return_type.ToString() << " to "
 	          << return_type.ToString() << std::endl;
+
+	auto mlirContext = builder.getContext();
 	auto result = child->translateExpression(translationContext, builder);
-	if (bound_cast.function != nullptr) {
-		std::cout << "[BoundCastExpression::translateExpression] Found cast function" << std::endl;
+	auto sourceType = child->return_type;
+	auto targetType = return_type;
+	if (sourceType == targetType) {
+		return result;
 	}
-	return result;
+	return builder.create<lingodb::compiler::dialect::db::CastOp>(loc, getMLIRTypeFromDuckDBLogicalType(targetType, mlirContext), result);
+	// if (bound_cast.function != nullptr) {
+	// 	std::cout << "[BoundCastExpression::translateExpression] Found cast function" << std::endl;
+	// }
+	// return result;
 }
 
 BoundCastExpression::BoundCastExpression(unique_ptr<Expression> child_p, LogicalType target_type_p,

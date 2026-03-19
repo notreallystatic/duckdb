@@ -19,6 +19,24 @@
 #include "duckdb/common/insertion_order_preserving_map.hpp"
 #include "duckdb/mlir_util/mlir_util.hpp"
 
+#include "lingodb/compiler/Dialect/DB/IR/DBDialect.h"
+#include "lingodb/compiler/Dialect/RelAlg/IR/RelAlgDialect.h"
+#include "lingodb/compiler/Dialect/SubOperator/SubOperatorDialect.h"
+#include "lingodb/compiler/Dialect/SubOperator/SubOperatorOps.h"
+#include "lingodb/compiler/Dialect/TupleStream/TupleStreamDialect.h"
+#include "lingodb/compiler/Dialect/util/UtilDialect.h"
+#include "lingodb/compiler/frontend/SQL/Parser.h"
+#include "lingodb/runtime/Session.h"
+
+#include "lingodb/execution/Frontend.h"
+
+#include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/Dialect.h"
+
+
 #include <algorithm>
 #include <functional>
 #include <optional>

@@ -22,7 +22,7 @@ BoundFunctionExpression::BoundFunctionExpression(LogicalType return_type, Scalar
 mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext& translationContext,
 	mlir::OpBuilder& builder) {
 	auto loc = builder.getUnknownLoc();
-	std::cout << "[BoundFunctionExpression::translateExpression] Translating function :: " << function.name << std::endl;
+	std::cout << "[BoundFunctionExpression::translateExpression] Translating function :: " << function.name << " children :: " << children.size() << std::endl;
 	// to_days(CAST(trunc(CAST('90' AS DOUBLE)) AS INTEGER)))
 	// For now, just add support for the above function.
 
@@ -32,7 +32,6 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 	}
 
 	if (function.name == "to_days") {
-		std::cout << "[BoundFunctionExpression::translateExpression] Translating to_days function" << std::endl;
 		Value childValue;
 		string childValueStr;
 		D_ASSERT(children.size() == 1);
@@ -44,7 +43,6 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 			builder.getStringAttr(childValueStr + "days"));
 	}
 	else if (function.name == "-") {
-		std::cout << "[BoundFunctionExpression::translateExpression] Translating subtraction function" << std::endl;
 		if (children.size() == 2) {
 			// If left is date and right is a bound_function to_days, then we are doing date subtraction
 			if (children[0]->return_type.id() == LogicalTypeId::DATE &&
@@ -59,21 +57,39 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 					loc, dateType, builder.getStringAttr(dateValueStr));
 				auto rightVal = children[1]->translateExpression(translationContext, builder);
 				return builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, leftVal.getType(), "DateSubtract", mlir::ValueRange({ leftVal, rightVal })).getRes();
+			} else  {
+				auto leftVal = children[0]->translateExpression(translationContext, builder);
+				auto rightVal = children[1]->translateExpression(translationContext, builder);
+				return builder.create<lingodb::compiler::dialect::db::SubOp>(loc, leftVal, rightVal);
 			}
 		}
-	} else if (function.name == LikeFun::Name) {
-		std::cout << "[BoundFunctionExpression::translateExpression] Translating LIKE function" << std::endl;
+	}
+	else if (function.name == LikeFun::Name) {
 		D_ASSERT(children.size() == 2);
 		auto leftVal = children[0]->translateExpression(translationContext, builder);
 		auto rightVal = children[1]->translateExpression(translationContext, builder);
 		return builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, builder.getI1Type(), "Like", mlir::ValueRange({ leftVal, rightVal })).getRes();
-	} else if (function.name == NotLikeFun::Name) {
-		std::cout << "[BoundFunctionExpression::translateExpression] Translating NOT LIKE function" << std::endl;
+	}
+	else if (function.name == NotLikeFun::Name) {
 		D_ASSERT(children.size() == 2);
 		auto leftVal = children[0]->translateExpression(translationContext, builder);
 		auto rightVal = children[1]->translateExpression(translationContext, builder);
 		auto result = builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, builder.getI1Type(), "Like", mlir::ValueRange({ leftVal, rightVal })).getRes();
 		return builder.create<lingodb::compiler::dialect::db::NotOp>(loc, result).getRes();
+	}
+	else if (function.name == "*") {
+		if (children.size() == 2) {
+			auto leftVal = children[0]->translateExpression(translationContext, builder);
+			auto rightVal = children[1]->translateExpression(translationContext, builder);
+			return builder.create<lingodb::compiler::dialect::db::MulOp>(loc, leftVal, rightVal);
+		}
+	}
+	else if (function.name == "+") {
+		if (children.size() == 2) {
+			auto leftVal = children[0]->translateExpression(translationContext, builder);
+			auto rightVal = children[1]->translateExpression(translationContext, builder);
+			return builder.create<lingodb::compiler::dialect::db::AddOp>(loc, leftVal, rightVal);
+		}
 	}
 	std::cout << "[BoundFunctionExpression::translateExpression] Unhandled function :: " << function.name << std::endl;
 	throw std::runtime_error("Unhandled function in MLIR translation :: " + function.name);

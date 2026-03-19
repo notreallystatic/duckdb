@@ -2070,15 +2070,14 @@ mlir::Type getMLIRTypeFromDuckDBLogicalType(const LogicalType &type, mlir::MLIRC
 			std::cerr << "Failed to get decimal properties for type: " << type.ToString() << std::endl;
 			throw InternalException("Failed to get decimal properties for type");
 		}
-		// Decimal(15, 2) is (12, 2) in MLIR
-		if (width == 15) {
-			width = 12;
-		}
 		return lingodb::compiler::dialect::db::DecimalType::get(context, width , scale);
 	}
 	case LogicalTypeId::DATE: {
 		// TODO: this works for YYYY-MM-DD, might need to extend in future.
 		return lingodb::compiler::dialect::db::DateType::get(context, lingodb::compiler::dialect::db::DateUnitAttr::day);
+	}
+	case LogicalTypeId::TIMESTAMP: {
+		return lingodb::compiler::dialect::db::TimestampType::get(context, lingodb::compiler::dialect::db::TimeUnitAttr::second);
 	}
 	default: {
 		std::cerr << "Unsupported type for MLIR conversion: " << type.ToString() << std::endl;
