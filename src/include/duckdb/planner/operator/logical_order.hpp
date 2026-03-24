@@ -20,6 +20,8 @@ class LogicalOrder : public LogicalOperator {
 public:
 	static constexpr const LogicalOperatorType TYPE = LogicalOperatorType::LOGICAL_ORDER_BY;
 
+	void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&) override;
+
 public:
 	explicit LogicalOrder(vector<BoundOrderByNode> orders);
 

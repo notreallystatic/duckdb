@@ -66,11 +66,12 @@ public:
 	mlir::Value mlirValue; // Node's currect MLIR value
 
 public:
-	mlir::Value getMLIRValue() const {
-		return mlirValue;
-	}
+	mlir::Value getMLIRValue();
+
 	// Resolve the current MLIR value of the node and recursively resolve the MLIR values of the children
 	virtual void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&);
+	virtual string resolveColumnBinding(ColumnBinding& binding);
+	virtual string resolveTableIndex(idx_t table_index);
 	//! Print the operator tree, for debugging purposes
 	virtual void Walk(int depth = 0);
 	//! Traverse the operator tree and add the corresponding MLIR code.

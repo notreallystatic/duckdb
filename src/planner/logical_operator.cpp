@@ -34,6 +34,17 @@ void LogicalOperator::Walk(int depth) {
 	}
 }
 
+mlir::Value LogicalOperator::getMLIRValue() {
+	// Check if the value is present or not, otherwise return the child value.
+	if (mlirValue) {
+		return mlirValue;
+	} else if (!children.empty()) {
+		return children[0]->getMLIRValue();
+	} else {
+		throw std::runtime_error("No MLIR value found for this operator and it has no children to derive a value from.");
+	}
+}
+
 void LogicalOperator::AddMLIR(ClientContext &context, unique_ptr<LogicalOperator> &og_tree, int depth) {
 	// string indent = std::string(depth * 4, ' ');
 	// std::cout << indent << "[LogicalOperator](AddMLIR) :: " << LogicalOperatorToString(type) << std::endl;
@@ -295,4 +306,20 @@ void LogicalOperator::resolveMLIRValue(MLIRTranslationContext &translationContex
 	}
 }
 
+string LogicalOperator::resolveColumnBinding(ColumnBinding &binding) {
+	return children.empty() ? "" : children[0]->resolveColumnBinding(binding);
+}
+
+string LogicalOperator::resolveTableIndex(idx_t table_index) {
+	string tableName = "";
+	if (!children.empty()) {
+		for (const auto &child : children) {
+			tableName = child->resolveTableIndex(table_index);
+			if (!tableName.empty()) {
+				return tableName;
+			}
+		}
+	}
+	return tableName;
+}
 } // namespace duckdb

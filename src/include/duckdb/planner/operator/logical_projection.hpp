@@ -24,6 +24,8 @@ public:
 	idx_t table_index;
 
 public:
+	void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&) override;
+	string resolveColumnBinding(ColumnBinding& binding) override;
 	vector<ColumnBinding> GetColumnBindings() override;
 	void Serialize(Serializer &serializer) const override;
 	static unique_ptr<LogicalOperator> Deserialize(Deserializer &deserializer);

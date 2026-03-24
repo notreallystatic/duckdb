@@ -650,4 +650,11 @@ void LogicalGet::resolveMLIRValue(MLIRTranslationContext &translationContext, ML
 	std::cout << std::endl;
 }
 
+string LogicalGet::resolveTableIndex(idx_t table_index) {
+	if (table_index  == this->table_index) {
+		return getTableName();
+	}
+	return "";
+}
+
 } // namespace duckdb

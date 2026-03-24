@@ -1,4 +1,5 @@
 #include "duckdb/planner/operator/logical_projection.hpp"
+#include "duckdb/planner/expression/bound_columnref_expression.hpp"
 
 #include "duckdb/main/config.hpp"
 
@@ -33,4 +34,26 @@ string LogicalProjection::GetName() const {
 	return LogicalOperator::GetName();
 }
 
+void LogicalProjection::resolveMLIRValue(MLIRTranslationContext& translationContext, MLIRTranslationContext::ResolverScope& scope) {
+	std::cout << "[LogicalProjection](resolveMLIRValue) :: " << LogicalOperatorToString(type) << std::endl;
+	for (const auto &child: children) {
+		child->resolveMLIRValue(translationContext, scope);
+	}
+}
+
+string LogicalProjection::resolveColumnBinding(ColumnBinding& binding) {
+	string tableName = this->resolveTableIndex(binding.table_index - 1);
+	auto columnIndex = binding.column_index;
+	if (expressions.size() >= columnIndex) {
+		auto expr = expressions[columnIndex].get();
+		if (expr->type == ExpressionType::BOUND_COLUMN_REF) {
+			auto &columnRefExpr = expr->Cast<BoundColumnRefExpression>();
+			auto columnName = columnRefExpr.ToString();
+			std::cout << "[LogicalProjection](resolveColumnBinding) :: Resolving column binding for table index " << binding.table_index
+			          << " and column index " << columnIndex << " with column name " << columnName << std::endl;
+			return tableName.empty() ? columnName : tableName + "." + columnName;
+		}
+	}
+	return children.empty() ? "" : children[0]->resolveColumnBinding(binding);
+}
 } // namespace duckdb
