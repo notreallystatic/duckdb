@@ -328,14 +328,14 @@ void LogicalFilter::resolveMLIRValue(MLIRTranslationContext &translationContext,
 		return;
 	}
 	auto inputValue = children[0]->getMLIRValue();
+	std::cout << "LogicalFilter :: Resolving MLIR Value for filter with inputValue :: " << std::endl;
+	inputValue.print(llvm::outs());
+	std::cout << std::endl;
 
 	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 	auto &builder = mlirContainerInstance.getBuilder();
 	auto loc = builder.getUnknownLoc();
 
-	auto selectionOp = builder.create<lingodb::compiler::dialect::relalg::SelectionOp>(
-		loc, lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext()), inputValue
-	);
 	auto *predBlock = new mlir::Block();
 	mlir::OpBuilder predBuilder(builder.getContext());
 	predBlock->addArgument(lingodb::compiler::dialect::tuples::TupleType::get(builder.getContext()), loc);
@@ -346,11 +346,22 @@ void LogicalFilter::resolveMLIRValue(MLIRTranslationContext &translationContext,
 	// Add the expression and return it as a result.
 	mlir::Value resultExpr = expressions[0]->translateExpression(translationContext, predBuilder);
 	predBuilder.create<lingodb::compiler::dialect::tuples::ReturnOp>(loc, resultExpr);
+	auto selectionOp = builder.create<lingodb::compiler::dialect::relalg::SelectionOp>(
+		loc,
+		lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext()),
+		inputValue
+	);
 	selectionOp.getPredicate().push_back(predBlock);
 
 	this->mlirValue = selectionOp.getResult();
 
 	std::cout << "LogicalFilter MLIR Value :: " << std::endl;
+	auto op = selectionOp.getOperation();
+	if (op && op->getBlock()) {
+		op->getBlock()->print(llvm::outs());
+		llvm::outs() << "\n";
+	}
+
 	std::cout.flush();
 	this->mlirValue.print(llvm::outs());
 	std::cout << std::endl;

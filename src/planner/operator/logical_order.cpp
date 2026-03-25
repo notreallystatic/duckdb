@@ -57,7 +57,12 @@ void LogicalOrder::resolveMLIRValue(MLIRTranslationContext &translationContext, 
 			);
 		}
 	}
-	this->mlirValue = builder.create<relalg::SortOp>(loc, tuples::TupleStreamType::get(builder.getContext()), childValue, builder.getArrayAttr(orderAttributes));
+	this->mlirValue = builder.create<relalg::SortOp>(
+		loc,
+		tuples::TupleStreamType::get(builder.getContext()),
+		childValue,
+		builder.getArrayAttr(orderAttributes)
+	);
 	std::cout << "[LogicalOrder](resolveMLIRValue) :: Resolved MLIR Value for LogicalOrder: " << std::endl;
 	std::cout.flush();
 	this->mlirValue.print(llvm::outs());

@@ -52,7 +52,12 @@ void LogicalLimit::resolveMLIRValue(MLIRTranslationContext& translationContext, 
 	child->resolveMLIRValue(translationContext, scope);
 	mlir::Value childValue = child->getMLIRValue();
 
-	mlir::Value limitValue = builder.create<relalg::LimitOp>(loc, tuples::TupleStreamType::get(builder.getContext()), limit_val.GetConstantValue(), childValue);
+	mlir::Value limitValue = builder.create<relalg::LimitOp>(
+		loc,
+		tuples::TupleStreamType::get(builder.getContext()),
+		limit_val.GetConstantValue(),
+		childValue
+	);
 	this->mlirValue = limitValue;
 	std::cout << "[LogicalLimit](resolveMLIRValue) :: Resolved MLIR Value for LogicalLimit: " << std::endl;
 	std::cout.flush();

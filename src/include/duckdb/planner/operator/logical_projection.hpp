@@ -25,6 +25,7 @@ public:
 
 public:
 	void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&) override;
+	void materializeMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&);
 	string resolveColumnBinding(ColumnBinding& binding) override;
 	vector<ColumnBinding> GetColumnBindings() override;
 	void Serialize(Serializer &serializer) const override;

@@ -626,16 +626,27 @@ void LogicalGet::resolveMLIRValue(MLIRTranslationContext &translationContext, ML
 		->getColumnManager();
 
 	std::vector<mlir::NamedAttribute> columns;
-	for (auto &col : column_ids) {
-		auto colName = GetColumnName(col);
-		auto localColType = GetColumnType(col);
-		auto colType = getMLIRTypeFromDuckDBLogicalType(localColType, &mlirContext);
 
-		auto attrDef = attrManager.createDef(scope_name, colName);
-		attrDef.getColumn().type = colType;
-		columns.push_back(builder.getNamedAttr(colName, attrDef));
-		translationContext.mapAttribute(scope, colName, &attrDef.getColumn());
-		translationContext.mapAttribute(scope, table_name + "." + colName, &attrDef.getColumn());
+	auto add_column_to_basetable = [&](const string &col_name, const LogicalType &logical_type) {
+		auto col_type = getMLIRTypeFromDuckDBLogicalType(logical_type, &mlirContext);
+		auto attrDef = attrManager.createDef(scope_name, col_name);
+		attrDef.getColumn().type = col_type;
+		columns.push_back(builder.getNamedAttr(col_name, attrDef));
+		translationContext.mapAttribute(scope, col_name, &attrDef.getColumn());
+		translationContext.mapAttribute(scope, table_name + "." + col_name, &attrDef.getColumn());
+	};
+
+	if (auto table_entry = GetTable()) {
+		for (auto &col : table_entry->GetColumns().Logical()) {
+			add_column_to_basetable(col.Name(), col.Type());
+		}
+	} else {
+		// Fallback for non-catalog scans: use currently projected columns.
+		for (auto &col : column_ids) {
+			auto col_name = GetColumnName(col);
+			auto logical_type = GetColumnType(col);
+			add_column_to_basetable(col_name, logical_type);
+		}
 	}
 
 	this->mlirValue = builder.create<lingodb::compiler::dialect::relalg::BaseTableOp>(

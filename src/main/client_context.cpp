@@ -50,6 +50,7 @@
 #include "duckdb/logging/log_type.hpp"
 #include "duckdb/logging/log_manager.hpp"
 #include "duckdb/main/settings.hpp"
+#include "duckdb/planner/operator/logical_projection.hpp"
 
 #include "lingodb/execution/Frontend.h"
 
@@ -412,10 +413,43 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 		std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
 	}
 	try {
-		MLIRTranslationContext translationContext;
-		translationContext.clientContext = this;
-		auto scope = translationContext.createResolverScope();
-		logical_plan->resolveMLIRValue(translationContext, scope);
+		auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
+		auto moduleOp = mlirContainerInstance.getModuleOp();
+		auto& builder = mlirContainerInstance.getBuilder();
+		auto* mainBlock = mlirContainerInstance.mainBlock;
+		auto* queryBlock = mlirContainerInstance.queryBlock;
+
+		builder.setInsertionPointToStart(moduleOp.getBody());
+		{
+			{
+
+				mlir::OpBuilder::InsertionGuard guard(builder);
+				builder.setInsertionPointToStart(mainBlock);
+				{
+					mlir::OpBuilder::InsertionGuard guard(builder);
+					builder.setInsertionPointToStart(queryBlock);
+
+					MLIRTranslationContext translationContext;
+					translationContext.clientContext = this;
+					auto scope = translationContext.createResolverScope();
+					logical_plan->resolveMLIRValue(translationContext, scope);
+
+					std::cout << "[ClientContext](CreatePreparedStatementInternal) :: Finished resolving MLIR values for the logical plan\n";
+					if (logical_plan->type == LogicalOperatorType::LOGICAL_PROJECTION) {
+						auto& projection = logical_plan->Cast<LogicalProjection>();
+						projection.materializeMLIRValue(translationContext, scope);
+					}
+				}
+			}
+			mlir::func::FuncOp funcOp = builder.create<mlir::func::FuncOp>(builder.getUnknownLoc(), "main", builder.getFunctionType({}, {}));
+			funcOp.getBody().push_back(mainBlock);
+		}
+		// mlirContainerInstance.print();
+		mlir::OpPrintingFlags flags;
+   		flags.assumeVerified();
+   		moduleOp.print(llvm::outs(), flags);
+
+		lingodb::execution::MLIRContainer::reset();
 	} catch (std::exception &ex) {
 		std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
 	}
