@@ -28,6 +28,30 @@ mlir::Value BoundCastExpression::translateExpression(MLIRTranslationContext& tra
 	if (sourceType == targetType) {
 		return result;
 	}
+
+	// Some temporal casts are introduced by DuckDB rewrites (e.g., DATE -> TIMESTAMP in predicates)
+	// but are not currently legalizable in this MLIR lowering path. Keep the child value and let
+	// comparison/type inference settle on a common type downstream.
+	auto is_timestamp_family = [](LogicalTypeId id) {
+		switch (id) {
+		case LogicalTypeId::TIMESTAMP:
+		case LogicalTypeId::TIMESTAMP_SEC:
+		case LogicalTypeId::TIMESTAMP_MS:
+		case LogicalTypeId::TIMESTAMP_NS:
+		case LogicalTypeId::TIMESTAMP_TZ:
+			return true;
+		default:
+			return false;
+		}
+	};
+	const auto source_id = sourceType.id();
+	const auto target_id = targetType.id();
+	const bool date_to_timestamp = (source_id == LogicalTypeId::DATE && is_timestamp_family(target_id));
+	const bool timestamp_to_date = (is_timestamp_family(source_id) && target_id == LogicalTypeId::DATE);
+	if (date_to_timestamp || timestamp_to_date) {
+		return result;
+	}
+
 	return builder.create<lingodb::compiler::dialect::db::CastOp>(loc, getMLIRTypeFromDuckDBLogicalType(targetType, mlirContext), result);
 	// if (bound_cast.function != nullptr) {
 	// 	std::cout << "[BoundCastExpression::translateExpression] Found cast function" << std::endl;

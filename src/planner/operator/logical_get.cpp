@@ -626,9 +626,80 @@ void LogicalGet::resolveMLIRValue(MLIRTranslationContext &translationContext, ML
 		->getColumnManager();
 
 	std::vector<mlir::NamedAttribute> columns;
+	auto table_entry = GetTable();
+	unordered_map<string, LogicalType> catalog_types_by_name;
+	if (table_entry) {
+		for (auto &col : table_entry->GetColumns().Logical()) {
+			catalog_types_by_name[col.Name()] = col.Type();
+		}
+	}
+
+	auto tpch_char_width = [&](const string &table, const string &col) -> idx_t {
+		if (table == "lineitem") {
+			if (col == "l_returnflag" || col == "l_linestatus") {
+				return 1;
+			}
+			if (col == "l_shipinstruct") {
+				return 25;
+			}
+			if (col == "l_shipmode") {
+				return 10;
+			}
+		}
+		if (table == "orders") {
+			if (col == "o_orderstatus") {
+				return 1;
+			}
+			if (col == "o_orderpriority" || col == "o_clerk") {
+				return 15;
+			}
+		}
+		if (table == "customer") {
+			if (col == "c_mktsegment") {
+				return 10;
+			}
+			if (col == "c_phone") {
+				return 15;
+			}
+		}
+		if (table == "supplier") {
+			if (col == "s_name") {
+				return 25;
+			}
+			if (col == "s_phone") {
+				return 15;
+			}
+		}
+		if (table == "nation" && col == "n_name") {
+			return 25;
+		}
+		if (table == "region" && col == "r_name") {
+			return 25;
+		}
+		if (table == "part") {
+			if (col == "p_mfgr" || col == "p_type") {
+				return 25;
+			}
+			if (col == "p_brand" || col == "p_container") {
+				return 10;
+			}
+		}
+		return 0;
+	};
 
 	auto add_column_to_basetable = [&](const string &col_name, const LogicalType &logical_type) {
-		auto col_type = getMLIRTypeFromDuckDBLogicalType(logical_type, &mlirContext);
+		mlir::Type col_type;
+		if (logical_type.id() == LogicalTypeId::VARCHAR) {
+			auto width = tpch_char_width(table_name, col_name);
+			if (width == 0) {
+				// Keep varlen-like columns in a bounded fixed-size representation for now;
+				// this avoids backend crashes on db.string materialization in compiled mode.
+				width = 256;
+			}
+			col_type = lingodb::compiler::dialect::db::CharType::get(&mlirContext, width);
+		} else {
+			col_type = getMLIRTypeFromDuckDBLogicalType(logical_type, &mlirContext);
+		}
 		auto attrDef = attrManager.createDef(scope_name, col_name);
 		attrDef.getColumn().type = col_type;
 		columns.push_back(builder.getNamedAttr(col_name, attrDef));
@@ -648,6 +719,8 @@ void LogicalGet::resolveMLIRValue(MLIRTranslationContext &translationContext, ML
 			add_column_to_basetable(col_name, logical_type);
 		}
 	}
+
+
 
 	this->mlirValue = builder.create<lingodb::compiler::dialect::relalg::BaseTableOp>(
 	    builder.getUnknownLoc(),

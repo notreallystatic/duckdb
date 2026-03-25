@@ -413,6 +413,7 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 		std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
 	}
 	try {
+		lingodb::execution::MLIRContainer::reset();
 		auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 		auto moduleOp = mlirContainerInstance.getModuleOp();
 		auto& builder = mlirContainerInstance.getBuilder();
@@ -444,12 +445,10 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 			mlir::func::FuncOp funcOp = builder.create<mlir::func::FuncOp>(builder.getUnknownLoc(), "main", builder.getFunctionType({}, {}));
 			funcOp.getBody().push_back(mainBlock);
 		}
-		// mlirContainerInstance.print();
 		mlir::OpPrintingFlags flags;
    		flags.assumeVerified();
    		moduleOp.print(llvm::outs(), flags);
 
-		lingodb::execution::MLIRContainer::reset();
 	} catch (std::exception &ex) {
 		std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
 	}
@@ -469,20 +468,13 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 #endif
 	}
 
-	// The logical plan is not optimized. We can compile the query now.
-
 	if (compile_queries) {
-		lingodb::execution::MLIRContainer::reset();
 		profiler.StartPhase(MetricsType::COMPILE_AND_RUN_QUERIES);
-		// auto &mlirContainer = lingodb::execution::MLIRContainer::getInstance();
-
-		// lingodb::execution::MLIRContainer::reset();
-
-		// std::cout << "[ClientContext] (CreatePreparedStatementInternal) Compiling the logical plan now :: \n";
-		// logical_plan->AddMLIR(*this, logical_plan, 0);
+		std::cout << "[ClientContext] (CreatePreparedStatementInternal) running the compiled plan :: \n";
 
 		profiler.EndPhase();
 		if (statement_type == StatementType::SELECT_STATEMENT) {
+			runMLIR();
 			result->is_compiled_query = true;
 			return result;
 		}
@@ -492,8 +484,7 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 	profiler.StartPhase(MetricsType::PHYSICAL_PLANNER);
 	PhysicalPlanGenerator physical_planner(*this);
 	result->physical_plan = physical_planner.Plan(std::move(logical_plan));
-	// result->physical_plan->walk();
-	// result->physical_plan.Walk();
+
 	profiler.EndPhase();
 	D_ASSERT(result->physical_plan);
 	return result;
