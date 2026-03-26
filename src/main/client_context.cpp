@@ -51,6 +51,7 @@
 #include "duckdb/logging/log_manager.hpp"
 #include "duckdb/main/settings.hpp"
 #include "duckdb/planner/operator/logical_projection.hpp"
+#include "duckdb/planner/logical_operator.hpp"
 
 #include "lingodb/execution/Frontend.h"
 
@@ -443,11 +444,11 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 					auto scope = translationContext.createResolverScope();
 					logical_plan->resolveMLIRValue(translationContext, scope);
 
+					auto materializeValue = logical_plan->getMLIRValue();
+					LogicalOperator::setMaterializeInput(materializeValue);
+
 					std::cout << "[ClientContext](CreatePreparedStatementInternal) :: Finished resolving MLIR values for the logical plan\n";
-					if (logical_plan->type == LogicalOperatorType::LOGICAL_PROJECTION) {
-						auto& projection = logical_plan->Cast<LogicalProjection>();
-						projection.materializeMLIRValue(translationContext, scope);
-					}
+					logical_plan->materializeMLIRValue(translationContext, scope);
 				}
 			}
 			mlir::func::FuncOp funcOp = builder.create<mlir::func::FuncOp>(builder.getUnknownLoc(), "main", builder.getFunctionType({}, {}));

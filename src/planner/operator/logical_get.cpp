@@ -448,6 +448,8 @@ void LogicalGet::resolveMLIRValue(MLIRTranslationContext &translationContext, ML
 	const string table_name = getTableName();
 	const string scope_name = table_name;
 
+	std::cout << "[LogicalGet](resolveMLIRValue) :: Resolving MLIR value for table: " << table_name << " table_index :: " << table_index << std::endl;
+
 	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 	D_ASSERT(mlirContainerInstance.getContextPtr() != nullptr);
 

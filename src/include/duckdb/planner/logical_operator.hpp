@@ -65,6 +65,8 @@ public:
 
 	mlir::Value mlirValue; // Node's currect MLIR value
 
+	static mlir::Value materializeInput;
+
 public:
 	mlir::Value getMLIRValue();
 
@@ -72,6 +74,8 @@ public:
 	virtual void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&);
 	virtual string resolveColumnBinding(ColumnBinding& binding);
 	virtual string resolveTableIndex(idx_t table_index);
+	void materializeMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&);
+	static void setMaterializeInput(mlir::Value value);
 	//! Print the operator tree, for debugging purposes
 	virtual void Walk(int depth = 0);
 
