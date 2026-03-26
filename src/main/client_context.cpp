@@ -348,6 +348,14 @@ unique_ptr<QueryResult> ClientContext::FetchResultInternal(ClientContextLock &lo
 	D_ASSERT(active_query);
 	D_ASSERT(active_query->IsOpenResult(pending));
 	D_ASSERT(active_query->prepared);
+	if (active_query->prepared->is_compiled_query && !active_query->executor) {
+		// Compiled execution already returned results outside the default executor path.
+		auto collection = make_uniq<ColumnDataCollection>(Allocator::DefaultAllocator(), pending.types);
+		auto result = make_uniq<MaterializedQueryResult>(pending.statement_type, pending.properties, pending.names,
+		                                                std::move(collection), GetClientProperties());
+		CleanupInternal(lock, result.get(), false);
+		return result;
+	}
 	auto &executor = GetExecutor();
 	auto &prepared = *active_query->prepared;
 	bool create_stream_result = prepared.properties.allow_stream_result && pending.allow_stream_result;
@@ -413,6 +421,7 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 		std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
 	}
 	try {
+		std::cout << "[ClientContext](CreatePreparedStatementInternal) :: Starting to resolve MLIR values for the logical plan\n";
 		lingodb::execution::MLIRContainer::reset();
 		auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 		auto moduleOp = mlirContainerInstance.getModuleOp();
@@ -447,7 +456,7 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 		mlir::OpPrintingFlags flags;
    		flags.assumeVerified();
    		moduleOp.print(llvm::outs(), flags);
-
+		std::cout << "\n" << "[ClientContext](CreatePreparedStatementInternal) :: Finished printing the MLIR module\n";
 	} catch (std::exception &ex) {
 		std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
 	}
@@ -674,6 +683,12 @@ PendingExecutionResult ClientContext::ExecuteTaskInternal(ClientContextLock &loc
                                                           bool dry_run) {
 	D_ASSERT(active_query);
 	D_ASSERT(active_query->IsOpenResult(result));
+	if (!active_query->executor) {
+		if (active_query->prepared && active_query->prepared->is_compiled_query) {
+			return PendingExecutionResult::RESULT_READY;
+		}
+		throw InternalException("ClientContext::ExecuteTaskInternal called without an active executor");
+	}
 	bool invalidate_transaction = true;
 	try {
 		auto query_result = active_query->executor->ExecuteTask(dry_run);
@@ -883,7 +898,13 @@ unique_ptr<PendingQueryResult> ClientContext::PendingStatementInternal(ClientCon
 	}
 
 	if (prepared->is_compiled_query) {
-		return ErrorResult<PendingQueryResult>(ExecutorException("Query already executed"), query);
+		// The query was already executed in compile mode. Return a pending result that
+		// will be finalized without invoking the default executor path.
+		auto pending_result =
+		    make_uniq<PendingQueryResult>(shared_from_this(), *prepared, prepared->types, false);
+		active_query->prepared = std::move(prepared);
+		active_query->SetOpenResult(*pending_result);
+		return pending_result;
 	}
 	// execute the prepared statement
 	CheckIfPreparedStatementIsExecutable(*prepared);
@@ -1194,6 +1215,15 @@ unique_ptr<PendingQueryResult> ClientContext::PendingQueryInternal(ClientContext
 }
 
 unique_ptr<QueryResult> ClientContext::ExecutePendingQueryInternal(ClientContextLock &lock, PendingQueryResult &query) {
+	if (active_query && active_query->prepared && active_query->prepared->is_compiled_query) {
+		// Compiled execution already produced side effects/results externally.
+		// Materialize an empty successful result to keep Query() control flow intact.
+		auto collection = make_uniq<ColumnDataCollection>(Allocator::DefaultAllocator(), query.types);
+		auto result = make_uniq<MaterializedQueryResult>(query.statement_type, query.properties, query.names,
+		                                                std::move(collection), GetClientProperties());
+		CleanupInternal(lock, result.get(), false);
+		return result;
+	}
 	return query.ExecuteInternal(lock);
 }
 
