@@ -423,7 +423,6 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 		builder.setInsertionPointToStart(moduleOp.getBody());
 		{
 			{
-
 				mlir::OpBuilder::InsertionGuard guard(builder);
 				builder.setInsertionPointToStart(mainBlock);
 				{

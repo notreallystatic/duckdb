@@ -74,11 +74,7 @@ public:
 	virtual string resolveTableIndex(idx_t table_index);
 	//! Print the operator tree, for debugging purposes
 	virtual void Walk(int depth = 0);
-	//! Traverse the operator tree and add the corresponding MLIR code.
-	virtual void AddMLIR(ClientContext &context, unique_ptr<LogicalOperator> &og_tree, int depth = 0);
-	virtual void AddMLIRSpecific(ClientContext &context, LogicalOperatorType operator_to_process,
-	                             unique_ptr<LogicalOperator> &og_tree, MLIRTranslationContext &mlir_context,
-	                             int depth = 0);
+
 	virtual vector<ColumnBinding> GetColumnBindings();
 	static string ColumnBindingsToString(const vector<ColumnBinding> &bindings);
 	void PrintColumnBindings();

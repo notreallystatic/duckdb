@@ -28,9 +28,7 @@ public:
 
 public:
 	void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&) override;
-	void AddMLIRSpecific(ClientContext &context, LogicalOperatorType operator_to_process,
-	                     unique_ptr<LogicalOperator> &og_tree, MLIRTranslationContext &mlir_context,
-	                     int depth = 0) override;
+
 	vector<ColumnBinding> GetColumnBindings() override;
 
 	bool HasProjectionMap() const override {

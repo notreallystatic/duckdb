@@ -46,9 +46,6 @@ public:
 	TupleDataValidityType distinct_validity;
 
 public:
-	void AddMLIRSpecific(ClientContext &context, LogicalOperatorType operator_to_process,
-	                     unique_ptr<LogicalOperator> &og_tree, MLIRTranslationContext &mlir_context,
-	                     int depth = 0) override;
 	void Walk(int depth = 0) override;
 	InsertionOrderPreservingMap<string> ParamsToString() const override;
 
