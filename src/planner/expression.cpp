@@ -48,6 +48,12 @@ void printExpression(const unique_ptr<Expression> &expression, int depth) {
 		}
 		break;
 	}
+	case ExpressionClass::BOUND_COLUMN_REF: {
+		auto &bound_col_ref = (BoundColumnRefExpression &)*expression;
+		std::cout << indent << "Expression Details :: " << expression->ToString() << std::endl;
+		std::cout << indent << "Column Binding :: " << bound_col_ref.binding.ToString() << std::endl;
+		break;
+	}
 	default: {
 		std::cout << indent << "Expression Details :: " << expression->ToString() << std::endl;
 		break;

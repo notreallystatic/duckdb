@@ -25,13 +25,15 @@ public:
 
 public:
 	void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&) override;
-	string resolveColumnBinding(ColumnBinding& binding) override;
+	MLIRAttributeInfo& resolveColumnBindingToAttributeInfo(ColumnBinding& binding) override;
 	vector<ColumnBinding> GetColumnBindings() override;
 	void Serialize(Serializer &serializer) const override;
 	static unique_ptr<LogicalOperator> Deserialize(Deserializer &deserializer);
 
 	vector<idx_t> GetTableIndex() const override;
 	string GetName() const override;
+
+	void Walk(int depth = 0) override;
 
 protected:
 	void ResolveTypes() override;

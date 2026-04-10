@@ -43,6 +43,12 @@
 
 namespace duckdb {
 
+struct MLIRAttributeInfo {
+	string table_name;
+	string col_name;
+	const lingodb::compiler::dialect::tuples::Column* column;
+};
+
 //! LogicalOperator is the base class of the logical operators present in the
 //! logical query tree
 class LogicalOperator {
@@ -67,12 +73,14 @@ public:
 
 	static mlir::Value materializeInput;
 
+	vector<MLIRAttributeInfo> mlirAttributeInfos; // MLIR attributes for the operator, used for code generation
+
 public:
 	mlir::Value getMLIRValue();
 
 	// Resolve the current MLIR value of the node and recursively resolve the MLIR values of the children
 	virtual void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&);
-	virtual string resolveColumnBinding(ColumnBinding& binding);
+	virtual MLIRAttributeInfo& resolveColumnBindingToAttributeInfo(ColumnBinding& binding);
 	virtual string resolveTableIndex(idx_t table_index);
 	void materializeMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&);
 	static void setMaterializeInput(mlir::Value value);

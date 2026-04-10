@@ -42,6 +42,15 @@ mlir::Type convertDuckDBTypeToNullableType(const LogicalType &type, mlir::MLIRCo
 LogicalGet::LogicalGet() : LogicalOperator(LogicalOperatorType::LOGICAL_GET) {
 }
 
+MLIRAttributeInfo& LogicalGet::resolveColumnBindingToAttributeInfo(ColumnBinding& binding) {
+	auto table_index = binding.table_index;
+	if (table_index != this->table_index) {
+		std::cout << "[LogicalGet](resolveColumnBindingToAttributeInfo) :: Table index " << table_index << " does not match LogicalGet's table index " << this->table_index << std::endl;
+		throw std::runtime_error("Table index does not match LogicalGet's table index");
+	}
+	return mlirAttributeInfos[binding.column_index];
+}
+
 string LogicalGet::getTableName() {
 	auto table_entry = GetTable();
 	string table_name;
@@ -76,6 +85,16 @@ void LogicalGet::Walk(int depth) {
 	string indent = string(depth * 4, ' ');
 	std::cout << indent << "[LogicalGet](Walk) :: " << GetName() << std::endl;
 
+	std::cout << "[LogicalGet](Walk) Table Index :: " << table_index << std::endl;
+	// Print column bindings
+	auto column_bindings = GetColumnBindings();
+	std::cout << indent << "[LogicalGet](Walk) Column Bindings :: " << ColumnBindingsToString(column_bindings) << std::endl;
+	// Print column names
+	std::cout << indent << "[LogicalGet](Walk) Column Names :: ";
+	for (const auto &name : names) {
+		std::cout << name << ", ";
+	}
+	std::cout << std::endl;
 	for (auto x : input_table_names) {
 		std::cout << indent << "[LogicalGet](Walk) Input Table Name :: " << x << std::endl;
 	}
@@ -541,6 +560,9 @@ void LogicalGet::resolveMLIRValue(MLIRTranslationContext &translationContext, ML
 		columns.push_back(builder.getNamedAttr(col_name, attrDef));
 		translationContext.mapAttribute(scope, col_name, &attrDef.getColumn());
 		translationContext.mapAttribute(scope, table_name + "." + col_name, &attrDef.getColumn());
+
+		auto mlirAttrInfo = MLIRAttributeInfo{table_name, col_name, &attrDef.getColumn()};
+		mlirAttributeInfos.push_back(mlirAttrInfo);
 	};
 
 	if (auto table_entry = GetTable()) {

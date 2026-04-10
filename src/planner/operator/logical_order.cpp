@@ -39,11 +39,11 @@ void LogicalOrder::resolveMLIRValue(MLIRTranslationContext &translationContext, 
 		if (expr->type == ExpressionType::BOUND_COLUMN_REF) {
 			auto& node = expr->Cast<BoundColumnRefExpression>();
 			auto binding = node.binding;
-			auto newBinding = ColumnBinding(binding.table_index - 1, binding.column_index);
-			string columnName = this->resolveColumnBinding(newBinding);
-			std::cout << "[LogicalOrder](resolveMLIRValue) :: Resolving column binding for " << binding.ToString()
-			          << " -> " << columnName << std::endl;
-			auto columnAttr = translationContext.getAttribute(columnName);
+			auto &mlirAttrInfo = this->children[0]->resolveColumnBindingToAttributeInfo(binding);
+			string columnNameWithTable = mlirAttrInfo.table_name; // table_name.column_name
+			string columnName = mlirAttrInfo.col_name; // column_name
+			auto columnAttr = mlirAttrInfo.column;
+
 			relalg::SortSpec spec;
 			if (order.type == OrderType::ASCENDING) {
 				spec = relalg::SortSpec::asc;

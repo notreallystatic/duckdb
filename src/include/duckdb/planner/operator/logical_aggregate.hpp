@@ -27,6 +27,7 @@ public:
 	LogicalAggregate(idx_t group_index, idx_t aggregate_index, vector<unique_ptr<Expression>> select_list);
 
 	void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&) override;
+	MLIRAttributeInfo& resolveColumnBindingToAttributeInfo(ColumnBinding& binding) override;
 
 	//! The table index for the groups of the LogicalAggregate
 	idx_t group_index;

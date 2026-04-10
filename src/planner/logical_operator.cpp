@@ -30,12 +30,21 @@ void LogicalOperator::Walk(int depth) {
 	for (const auto &ex : this->expressions) {
 		printExpression(ex, depth + 1);
 	}
+	auto column_bindings = this->GetColumnBindings();
+	std::cout << indent << "[LogicalOperator](Walk) Column Bindings :: " << ColumnBindingsToString(column_bindings) << std::endl;
 	std::cout << std::endl;
 	std::cout << indent << "[LogicalOperator](Walk) children length :: " << children.size() << std::endl;
 
 	for (const auto &child : children) {
 		child->Walk(depth + 1);
 	}
+}
+
+MLIRAttributeInfo& LogicalOperator::resolveColumnBindingToAttributeInfo(ColumnBinding& binding) {
+	if (children.empty()) {
+		throw std::runtime_error("resolveColumnBindingToAttributeInfo not implemented for operator type " + LogicalOperatorToString(type));
+	}
+	return children[0]->resolveColumnBindingToAttributeInfo(binding);
 }
 
 mlir::Value LogicalOperator::getMLIRValue() {
@@ -276,10 +285,6 @@ void LogicalOperator::resolveMLIRValue(MLIRTranslationContext &translationContex
 	}
 }
 
-string LogicalOperator::resolveColumnBinding(ColumnBinding &binding) {
-	return children.empty() ? "" : children[0]->resolveColumnBinding(binding);
-}
-
 string LogicalOperator::resolveTableIndex(idx_t table_index) {
 	string tableName = "";
 	if (!children.empty()) {
@@ -322,21 +327,26 @@ void LogicalOperator::materializeMLIRValue(MLIRTranslationContext &translationCo
 	llvm::SmallVector<subop::Member> members;
 	std::vector<mlir::Attribute> names;
 	std::vector<mlir::Attribute> attrs;
-	for (const auto &expr: expressions) {
-		if (expr->type == ExpressionType::BOUND_COLUMN_REF) {
-			auto& node = expr->Cast<BoundColumnRefExpression>();
-			auto binding = node.binding;
-			string columnNameWithTable = this->resolveColumnBinding(binding); // table_name.column_name
-			std::cout << "[LogicalProjection](materializeMLIRValue) :: Resolving column binding for " << binding.ToString()
-			          << " -> " << columnNameWithTable << std::endl;
-			string columnName = columnNameWithTable.substr(columnNameWithTable.find(".") + 1); // column_name
-			auto columnAttr = translationContext.getAttribute(columnNameWithTable);
 
-			names.push_back(builder.getStringAttr(columnName));
-			members.push_back(memberManager.createMember(columnName, columnAttr->type));
-			attrs.push_back(attrManager.createRef(columnAttr));
-		}
+	auto columnBindings = this->GetColumnBindings();
+	std::cout << "[LogicalProjection](materializeMLIRValue) :: Column Bindings for projection: " << ColumnBindingsToString(columnBindings) << std::endl;
+	int exprIndex = 0;
+	for (auto& binding : columnBindings) {
+		auto& mlirAttrInfo = this->resolveColumnBindingToAttributeInfo(binding);
+		string columnNameWithTable = mlirAttrInfo.table_name; // table_name.column_name
+		string columnName = mlirAttrInfo.col_name;
+		auto columnAttr = mlirAttrInfo.column;
+		std::cout << "[LogicalProjection](materializeMLIRValue) :: Resolving column binding for " << binding.ToString()
+			<< " -> " << columnNameWithTable << std::endl;
+		auto expr = this->expressions[exprIndex].get();
+		string exprName = expr->GetName();
+		std::cout << "[LogicalProjection](materializeMLIRValue) :: Expression for column " << columnNameWithTable << " is " << exprName << std::endl;
+		names.push_back(builder.getStringAttr(exprName));
+		members.push_back(memberManager.createMember(columnName, columnAttr->type));
+		attrs.push_back(attrManager.createRef(columnAttr));
+		++exprIndex;
 	}
+
 	auto localTableType = subop::LocalTableType::get(
 		builder.getContext(),
 		subop::StateMembersAttr::get(builder.getContext(), members),

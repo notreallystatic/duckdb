@@ -74,6 +74,7 @@ public:
 
 public:
 	void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&) override;
+	MLIRAttributeInfo& resolveColumnBindingToAttributeInfo(ColumnBinding& binding) override;
 	string resolveTableIndex(idx_t table_index) override;
 	void Walk(int depth = 0) override;
 	string getTableName();

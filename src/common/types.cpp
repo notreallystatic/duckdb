@@ -2054,9 +2054,9 @@ mlir::Type getMLIRTypeFromDuckDBLogicalType(const LogicalType &type, mlir::MLIRC
 	case LogicalTypeId::INTEGER:
 		return mlir::IntegerType::get(context, 32);
 	case LogicalTypeId::BIGINT:
-		return mlir::IntegerType::get(context, 64);
+		return mlir::IntegerType::get(context, 32);
 	case LogicalTypeId::HUGEINT:
-		return mlir::IntegerType::get(context, 128);
+		return mlir::IntegerType::get(context, 64);
 	case LogicalTypeId::FLOAT:
 		return mlir::Float32Type::get(context);
 	case LogicalTypeId::DOUBLE:

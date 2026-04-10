@@ -157,8 +157,10 @@ string LogicalAggregate::GetName() const {
 }
 
 relalg::AggrFunc getAggrFunc(const string& functionName) {
+	std::cout << "[LogicalAggregate](getAggrFunc) :: functionName :: " << functionName << std::endl;
 	return llvm::StringSwitch<relalg::AggrFunc>(functionName)
 		.Case("sum", relalg::AggrFunc::sum)
+		.Case("sum_no_overflow", relalg::AggrFunc::sum)
 		.Case("min", relalg::AggrFunc::min)
 		.Case("max", relalg::AggrFunc::max)
 		.Case("avg", relalg::AggrFunc::avg)
@@ -166,6 +168,19 @@ relalg::AggrFunc getAggrFunc(const string& functionName) {
 		.Default(relalg::AggrFunc::count);
 }
 
+MLIRAttributeInfo& LogicalAggregate::resolveColumnBindingToAttributeInfo(ColumnBinding& binding) {
+	if (binding.table_index == aggregate_index) {
+		if (binding.column_index >= expressions.size()) {
+			std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Invalid column index " << binding.column_index << " for aggregate_index " << aggregate_index << std::endl;
+			throw std::runtime_error("Invalid column index " + std::to_string(binding.column_index) + " for aggregate_index " + std::to_string(aggregate_index));
+		}
+		return mlirAttributeInfos[binding.column_index];
+	}
+	else {
+		std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Invalid table index " << binding.table_index << " for LogicalAggregate" << std::endl;
+		throw std::runtime_error("Invalid table index " + std::to_string(binding.table_index) + " for LogicalAggregate");
+	}
+}
 
 /**
 
@@ -350,6 +365,7 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 		auto columnDef = resolvedColumnAttrs[i];
 		attrDef.getColumn().type = columnDef->type;
 		aggrAttrs.push_back(attrDef);
+		mlirAttributeInfos.push_back(MLIRAttributeInfo{aggrOpName, columnName, &attrDef.getColumn()});
 	}
 
 	auto aggrOp = builder.create<relalg::AggregationOp>(loc,
