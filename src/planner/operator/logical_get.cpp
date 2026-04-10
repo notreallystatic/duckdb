@@ -48,7 +48,9 @@ MLIRAttributeInfo& LogicalGet::resolveColumnBindingToAttributeInfo(ColumnBinding
 		std::cout << "[LogicalGet](resolveColumnBindingToAttributeInfo) :: Table index " << table_index << " does not match LogicalGet's table index " << this->table_index << std::endl;
 		throw std::runtime_error("Table index does not match LogicalGet's table index");
 	}
-	return mlirAttributeInfos[binding.column_index];
+	auto& col_ids = GetColumnIds();
+	auto catalog_index = col_ids[binding.column_index].GetPrimaryIndex();
+	return mlirAttributeInfos[catalog_index];
 }
 
 string LogicalGet::getTableName() {

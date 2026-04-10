@@ -64,6 +64,12 @@ void LogicalAggregate::Walk(int depth) {
 	}
 	std::cout << std::endl;
 
+	std::cout << indent << "[LogicalAggregate](Walk) Group Exprs :: " << std::endl;
+	for (const auto &gs : this->groups) {
+		printExpression(gs, depth + 1);
+	}
+
+
 	std::cout << indent << "[LogicalAggregate](Walk) Grouping Functions :: " << std::endl;
 	for (const auto &gf : this->grouping_functions) {
 		std::cout << indent << "  [Grouping Function] :: ";
@@ -175,6 +181,19 @@ MLIRAttributeInfo& LogicalAggregate::resolveColumnBindingToAttributeInfo(ColumnB
 			throw std::runtime_error("Invalid column index " + std::to_string(binding.column_index) + " for aggregate_index " + std::to_string(aggregate_index));
 		}
 		return mlirAttributeInfos[binding.column_index];
+	} else if (binding.table_index == group_index) {
+		if (binding.column_index >= groups.size()) {
+			std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Invalid column index " << binding.column_index << " for group_index " << group_index << std::endl;
+			throw std::runtime_error("Invalid column index " + std::to_string(binding.column_index) + " for group_index " + std::to_string(group_index));
+		}
+		auto expr = groups[binding.column_index].get();
+		if (expr->expression_class != ExpressionClass::BOUND_COLUMN_REF) {
+			std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Expected group expression to be a BoundColumnRefExpression but found expression of class " << ExpressionClassToString(expr->expression_class) << std::endl;
+			throw std::runtime_error("Expected group expression to be a BoundColumnRefExpression but found expression of class " + ExpressionClassToString(expr->expression_class));
+		}
+		auto exprColBinding = expr->Cast<BoundColumnRefExpression>().binding;
+		std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Resolving group column binding " << exprColBinding.ToString() << " for group expression at index " << binding.column_index << std::endl;
+		return this->children[0]->resolveColumnBindingToAttributeInfo(exprColBinding);
 	}
 	else {
 		std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Invalid table index " << binding.table_index << " for LogicalAggregate" << std::endl;
