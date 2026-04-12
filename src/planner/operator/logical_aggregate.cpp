@@ -4,6 +4,7 @@
 #include "duckdb/main/config.hpp"
 
 #include "lingodb/compiler/Dialect/DB/IR/DBDialect.h"
+#include "lingodb/compiler/Dialect/DB/IR/DBOps.h"
 #include "lingodb/compiler/Dialect/RelAlg/IR/RelAlgDialect.h"
 #include "lingodb/compiler/Dialect/SubOperator/SubOperatorDialect.h"
 #include "lingodb/compiler/Dialect/SubOperator/SubOperatorOps.h"
@@ -22,6 +23,59 @@
 
 namespace relalg = lingodb::compiler::dialect::relalg;
 namespace tuples = lingodb::compiler::dialect::tuples;
+namespace db = lingodb::compiler::dialect::db;
+
+// Compute the proper result type for an aggregate function, matching LingoDB's Parser.cpp logic.
+static mlir::Type computeAggrResultType(mlir::OpBuilder &builder, relalg::AggrFunc aggrFunc,
+                                        mlir::Type inputColType, bool isUngrouped) {
+	mlir::Type aggrResultType = inputColType;
+
+	if (aggrFunc == relalg::AggrFunc::count) {
+		return builder.getI64Type();
+	}
+
+	if (aggrFunc == relalg::AggrFunc::avg) {
+		auto baseType = getBaseType(aggrResultType);
+		if (baseType.isIntOrFloat() && !baseType.isIntOrIndex()) {
+			// float types: keep aggrResultType as-is
+		} else if (mlir::isa<db::DecimalType>(baseType)) {
+			// decimal: compute result type via dummy DivOp(decimal, decimal(19,0))
+			mlir::OpBuilder b(builder.getContext());
+			mlir::Value x = b.create<db::ConstantOp>(b.getUnknownLoc(), baseType, b.getUnitAttr());
+			mlir::Value x2 = b.create<db::ConstantOp>(b.getUnknownLoc(), db::DecimalType::get(b.getContext(), 19, 0), b.getUnitAttr());
+			mlir::Value div = b.create<db::DivOp>(b.getUnknownLoc(), x, x2);
+			aggrResultType = div.getType();
+			div.getDefiningOp()->erase();
+			x2.getDefiningOp()->erase();
+			x.getDefiningOp()->erase();
+		} else {
+			// integer/other: compute result type via dummy DivOp(decimal(19,0), decimal(19,0))
+			mlir::OpBuilder b(builder.getContext());
+			mlir::Value x = b.create<db::ConstantOp>(b.getUnknownLoc(), db::DecimalType::get(b.getContext(), 19, 0), b.getUnitAttr());
+			mlir::Value div = b.create<db::DivOp>(b.getUnknownLoc(), x, x);
+			aggrResultType = div.getType();
+			div.getDefiningOp()->erase();
+			x.getDefiningOp()->erase();
+		}
+		if (mlir::isa<db::NullableType>(inputColType)) {
+			aggrResultType = db::NullableType::get(builder.getContext(), aggrResultType);
+		}
+	}
+
+	if (aggrFunc == relalg::AggrFunc::stddev_samp || aggrFunc == relalg::AggrFunc::var_samp) {
+		aggrResultType = builder.getF64Type();
+		if (mlir::isa<db::NullableType>(inputColType)) {
+			aggrResultType = db::NullableType::get(builder.getContext(), aggrResultType);
+		}
+	}
+
+	// Ungrouped aggregates (no GROUP BY) produce nullable results
+	if (!mlir::isa<db::NullableType>(aggrResultType) && isUngrouped) {
+		aggrResultType = db::NullableType::get(builder.getContext(), aggrResultType);
+	}
+
+	return aggrResultType;
+}
 
 namespace duckdb {
 
@@ -287,11 +341,21 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 	children[0]->resolveMLIRValue(translationContext, scope);
 	auto childValue = children[0]->getMLIRValue();
 
+	mlir::Block *aggrBlock = new mlir::Block();
+	aggrBlock->addArgument(tupleStreamType, loc);
+	aggrBlock->addArgument(tuples::TupleType::get(builder.getContext()), loc);
+
 	bool isMapOperationRequired = false;
+	unordered_set<int> skippedExpressionsForColumnAttrs;
+
 	for (int i = 0; i < expressions.size(); ++i) {
 		auto& expr = expressions[i];
 		if (expr->expression_class == ExpressionClass::BOUND_AGGREGATE) {
 			auto& bound_agg = expr->Cast<BoundAggregateExpression>();
+			if (bound_agg.function.name == "count_star") {
+				skippedExpressionsForColumnAttrs.insert(i);
+				continue;
+			}
 			for (const auto& child : bound_agg.children) {
 				if (child->expression_class == ExpressionClass::BOUND_COLUMN_REF) {
 					auto& colRefExpr = child->Cast<BoundColumnRefExpression>();
@@ -381,8 +445,18 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 	for (int i = 0; i < expressions.size(); ++i) {
 		string columnName = "aggr_arg_" + std::to_string(aggrArgId++);
 		auto attrDef = attrManager.createDef(aggrOpName, columnName);
-		auto columnDef = resolvedColumnAttrs[i];
-		attrDef.getColumn().type = columnDef->type;
+		if (skippedExpressionsForColumnAttrs.find(i) != skippedExpressionsForColumnAttrs.end()) {
+			// count_star: result type is i64, no input column needed
+			attrDef.getColumn().type = builder.getI64Type();
+		} else if (resolvedColumnAttrs.find(i) != resolvedColumnAttrs.end()) {
+			auto columnDef = resolvedColumnAttrs[i];
+			auto &bound_agg = expressions[i]->Cast<BoundAggregateExpression>();
+			relalg::AggrFunc aggrFunc = getAggrFunc(bound_agg.function.name);
+			attrDef.getColumn().type = computeAggrResultType(builder, aggrFunc, columnDef->type, groupByAttrs.empty());
+		} else {
+			std::cout << "[LogicalAggregate](resolveMLIRValue) :: No resolved column attribute found for expression at index " << i << std::endl;
+			throw std::runtime_error("No resolved column attribute found for expression at index " + std::to_string(i));
+		}
 		aggrAttrs.push_back(attrDef);
 		mlirAttributeInfos.push_back(MLIRAttributeInfo{aggrOpName, columnName, &attrDef.getColumn()});
 	}
@@ -394,9 +468,7 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 		builder.getArrayAttr(aggrAttrs)
 	);
 
-	mlir::Block *aggrBlock = new mlir::Block();
-	aggrBlock->addArgument(tupleStreamType, loc);
-	aggrBlock->addArgument(tuples::TupleType::get(builder.getContext()), loc);
+
 
 	mlir::OpBuilder aggrBuilder(builder.getContext());
 	aggrBuilder.setInsertionPointToStart(aggrBlock);
@@ -412,16 +484,27 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 		}
 		auto &bound_agg = expr->Cast<BoundAggregateExpression>();
 		auto functionName = bound_agg.function.name;
-		relalg::AggrFunc aggrFunc = getAggrFunc(functionName);
-		auto columnDef = resolvedColumnAttrs[i];
+		if (functionName == "count_star") {
+			auto val = aggrBuilder.create<relalg::CountRowsOp>(
+				builder.getUnknownLoc(),
+				builder.getI64Type(),
+				relArg
+			);
+			resultValues.push_back(val);
+		}
+		else {
+			relalg::AggrFunc aggrFunc = getAggrFunc(functionName);
+			auto columnDef = resolvedColumnAttrs[i];
+			mlir::Type aggrResultType = computeAggrResultType(builder, aggrFunc, columnDef->type, groupByAttrs.empty());
 
-		auto val = aggrBuilder.create<relalg::AggrFuncOp>(builder.getUnknownLoc(),
-			columnDef->type,
-			aggrFunc,
-			relArg,
-			attrManager.createRef(columnDef)
-		);
-		resultValues.push_back(val);
+			auto val = aggrBuilder.create<relalg::AggrFuncOp>(builder.getUnknownLoc(),
+				aggrResultType,
+				aggrFunc,
+				relArg,
+				attrManager.createRef(columnDef)
+			);
+			resultValues.push_back(val);
+		}
 	}
 
 	aggrBuilder.create<tuples::ReturnOp>(builder.getUnknownLoc(), mlir::ValueRange(resultValues));
