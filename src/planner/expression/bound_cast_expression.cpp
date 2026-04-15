@@ -16,13 +16,13 @@ static BoundCastInfo BindCastFunction(ClientContext &context, const LogicalType 
 }
 
 mlir::Value BoundCastExpression::translateExpression(MLIRTranslationContext& translationContext,
-	mlir::OpBuilder& builder) {
+	mlir::OpBuilder& builder, LogicalOperator *op) {
 	auto loc = builder.getUnknownLoc();
 	std::cout << "[BoundCastExpression::translateExpression] Translating cast from " << child->return_type.ToString() << " to "
 	          << return_type.ToString() << std::endl;
 
 	auto mlirContext = builder.getContext();
-	auto result = child->translateExpression(translationContext, builder);
+	auto result = child->translateExpression(translationContext, builder, op);
 	auto sourceType = child->return_type;
 	auto targetType = return_type;
 	if (sourceType == targetType) {

@@ -29,6 +29,8 @@ public:
 public:
 	void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&) override;
 
+	MLIRAttributeInfo& resolveColumnBindingToAttributeInfo(ColumnBinding& binding) override;
+
 	vector<ColumnBinding> GetColumnBindings() override;
 
 	bool HasProjectionMap() const override {

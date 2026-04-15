@@ -10,7 +10,7 @@ BoundConstantExpression::BoundConstantExpression(Value value_p)
 }
 
 mlir::Value BoundConstantExpression::translateExpression(MLIRTranslationContext& translationContext,
-	mlir::OpBuilder& builder) {
+	mlir::OpBuilder& builder, LogicalOperator *op) {
 	auto& mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 	auto loc = builder.getUnknownLoc();
 

@@ -2060,7 +2060,8 @@ mlir::Type getMLIRTypeFromDuckDBLogicalType(const LogicalType &type, mlir::MLIRC
 	case LogicalTypeId::FLOAT:
 		return mlir::Float32Type::get(context);
 	case LogicalTypeId::DOUBLE:
-		return mlir::Float64Type::get(context);
+		return lingodb::compiler::dialect::db::DecimalType::get(context, 38, 19);
+		// return mlir::Float64Type::get(context);
 	case LogicalTypeId::VARCHAR:
 		return lingodb::compiler::dialect::db::StringType::get(context);
 	case LogicalTypeId::DECIMAL: {

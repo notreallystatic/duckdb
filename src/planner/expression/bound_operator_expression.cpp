@@ -8,14 +8,14 @@ BoundOperatorExpression::BoundOperatorExpression(ExpressionType type, LogicalTyp
     : Expression(type, ExpressionClass::BOUND_OPERATOR, std::move(return_type)) {
 }
 
-mlir::Value BoundOperatorExpression::translateExpression(MLIRTranslationContext& translationContext, mlir::OpBuilder& predBuilder) {
+mlir::Value BoundOperatorExpression::translateExpression(MLIRTranslationContext& translationContext, mlir::OpBuilder& predBuilder, LogicalOperator *op) {
 	auto& mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 	auto loc = predBuilder.getUnknownLoc();
 
 	switch (type) {
 	case ExpressionType::OPERATOR_IS_NULL:
 	case ExpressionType::OPERATOR_IS_NOT_NULL: {
-		auto exprResult = children[0]->translateExpression(translationContext, predBuilder);
+		auto exprResult = children[0]->translateExpression(translationContext, predBuilder, op);
 		if (mlir::isa<lingodb::compiler::dialect::db::NullableType>(exprResult.getType())) {
 			auto isNull = predBuilder.create<lingodb::compiler::dialect::db::IsNullOp>(loc, exprResult);
 			if (type == ExpressionType::OPERATOR_IS_NOT_NULL) {
@@ -31,10 +31,10 @@ mlir::Value BoundOperatorExpression::translateExpression(MLIRTranslationContext&
 		}
 	}
 	case ExpressionType::COMPARE_IN: {
-		auto leftVal = children[0]->translateExpression(translationContext, predBuilder);
+		auto leftVal = children[0]->translateExpression(translationContext, predBuilder, op);
 		std::vector<mlir::Value> rightVals;
 		for (size_t i = 1; i < children.size(); i++) {
-			rightVals.push_back(children[i]->translateExpression(translationContext, predBuilder));
+			rightVals.push_back(children[i]->translateExpression(translationContext, predBuilder, op));
 		}
 		return predBuilder.create<lingodb::compiler::dialect::db::OneOfOp>(loc, leftVal, rightVals);
 	}

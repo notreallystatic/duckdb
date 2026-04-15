@@ -9,7 +9,7 @@ BoundConjunctionExpression::BoundConjunctionExpression(ExpressionType type)
 }
 
 mlir::Value BoundConjunctionExpression::translateExpression(MLIRTranslationContext &translationContext,
-															mlir::OpBuilder &predBuilder) {
+															mlir::OpBuilder &predBuilder, LogicalOperator *op) {
 
     auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 	auto moduleOp = mlirContainerInstance.getModuleOp();
@@ -21,7 +21,7 @@ mlir::Value BoundConjunctionExpression::translateExpression(MLIRTranslationConte
 
     std::vector<mlir::Value> childExprs;
 	for (auto& child : children) {
-		childExprs.push_back(child->translateExpression(translationContext, predBuilder));
+		childExprs.push_back(child->translateExpression(translationContext, predBuilder, op));
 	}
 
 	switch (type) {

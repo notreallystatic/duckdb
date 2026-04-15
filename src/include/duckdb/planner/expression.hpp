@@ -35,6 +35,7 @@
 namespace duckdb {
 class BaseStatistics;
 class ClientContext;
+class LogicalOperator;
 
 //!  The Expression class represents a bound Expression with a return type
 class Expression : public BaseExpression {
@@ -47,7 +48,7 @@ public:
 	//! Expression statistics (if any) - ONLY USED FOR VERIFICATION
 	unique_ptr<BaseStatistics> verification_stats;
 
-	virtual mlir::Value translateExpression(MLIRTranslationContext&, mlir::OpBuilder&);
+	virtual mlir::Value translateExpression(MLIRTranslationContext&, mlir::OpBuilder&, LogicalOperator *op);
 
 public:
 	bool IsAggregate() const override;

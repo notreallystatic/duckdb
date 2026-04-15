@@ -54,6 +54,37 @@ void printExpression(const unique_ptr<Expression> &expression, int depth) {
 		std::cout << indent << "Column Binding :: " << bound_col_ref.binding.ToString() << std::endl;
 		break;
 	}
+	case ExpressionClass::BOUND_SUBQUERY: {
+		auto &bound_subquery = (BoundSubqueryExpression &)*expression;
+		std::cout << indent << "Expression Details :: " << expression->ToString() << std::endl;
+		std::cout << indent << "Subquery Plan :: " << std::endl;
+		auto comparison_type = bound_subquery.comparison_type;
+		std::cout << indent << "Subquery Comparison Type :: " << ExpressionTypeToString(comparison_type) << std::endl;
+		break;
+	}
+	case ExpressionClass::BOUND_CONJUNCTION: {
+		auto &bound_conjunction = (BoundConjunctionExpression &)*expression;
+		std::cout << indent << "Expression Details :: " << expression->ToString() << std::endl;
+		std::cout << indent << "Conjunction Type :: " << ExpressionTypeToString(bound_conjunction.type) << std::endl;
+		for (auto &child : bound_conjunction.children) {
+			printExpression(child, depth + 1);
+		}
+		break;
+	}
+	case ExpressionClass::BOUND_CASE: {
+		auto &bound_case = (BoundCaseExpression &)*expression;
+		std::cout << indent << "Expression Details :: " << expression->ToString() << std::endl;
+		std::cout << indent << "CASE checks:: " << std::endl;
+		for (auto &check: bound_case.case_checks) {
+			std::cout << indent << "WHEN :: " << check.when_expr->ToString() << std::endl;
+			std::cout << indent << "THEN :: " << check.then_expr->ToString() << std::endl;
+			printExpression(check.when_expr, depth + 1);
+			printExpression(check.then_expr, depth + 1);
+		}
+		std::cout << indent << "ELSE :: " << bound_case.else_expr->ToString() << std::endl;
+		printExpression(bound_case.else_expr, depth + 1);
+		break;
+	}
 	default: {
 		std::cout << indent << "Expression Details :: " << expression->ToString() << std::endl;
 		break;
@@ -69,7 +100,7 @@ Expression::Expression(ExpressionType type, ExpressionClass expression_class, Lo
 Expression::~Expression() {
 }
 
-mlir::Value Expression::translateExpression(MLIRTranslationContext &context, mlir::OpBuilder &builder) {
+mlir::Value Expression::translateExpression(MLIRTranslationContext &context, mlir::OpBuilder &builder, LogicalOperator *op) {
 	// Base implementation does nothing, individual expression types can override this to provide their own translation logic.
 	std::cout << "[Expression::translateExpression] Base Expression translation called for expression of type :: " << ToString()
 	          << std::endl;

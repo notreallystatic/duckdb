@@ -10,7 +10,7 @@ BoundComparisonExpression::BoundComparisonExpression(ExpressionType type, unique
 }
 
 mlir::Value BoundComparisonExpression::translateExpression(MLIRTranslationContext &translationContext,
-															mlir::OpBuilder &predBuilder) {
+															mlir::OpBuilder &predBuilder, LogicalOperator *op) {
 
 	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 	auto moduleOp = mlirContainerInstance.getModuleOp();
@@ -20,8 +20,8 @@ mlir::Value BoundComparisonExpression::translateExpression(MLIRTranslationContex
 	        ->getColumnManager();
 	auto loc = predBuilder.getUnknownLoc();
 
-	auto leftMLIRValue = left->translateExpression(translationContext, predBuilder);
-	auto rightMLIRValue = right->translateExpression(translationContext, predBuilder);
+	auto leftMLIRValue = left->translateExpression(translationContext, predBuilder, op);
+	auto rightMLIRValue = right->translateExpression(translationContext, predBuilder, op);
 
 	lingodb::compiler::dialect::db::DBCmpPredicate dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::eq;
 	auto comparison_type = GetExpressionType();

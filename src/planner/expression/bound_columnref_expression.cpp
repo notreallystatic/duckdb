@@ -2,6 +2,7 @@
 
 #include "duckdb/common/types/hash.hpp"
 #include "duckdb/main/config.hpp"
+#include "duckdb/planner/logical_operator.hpp"
 
 namespace duckdb {
 
@@ -11,7 +12,7 @@ BoundColumnRefExpression::BoundColumnRefExpression(string alias_p, LogicalType t
 	this->alias = std::move(alias_p);
 }
 
-mlir::Value BoundColumnRefExpression::translateExpression(MLIRTranslationContext &translationContext, mlir::OpBuilder &predBuilder) {
+mlir::Value BoundColumnRefExpression::translateExpression(MLIRTranslationContext &translationContext, mlir::OpBuilder &predBuilder, LogicalOperator *op) {
 	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 	auto moduleOp = mlirContainerInstance.getModuleOp();
 	lingodb::compiler::dialect::tuples::ColumnManager &attrManager =
@@ -21,10 +22,12 @@ mlir::Value BoundColumnRefExpression::translateExpression(MLIRTranslationContext
 	auto loc = predBuilder.getUnknownLoc();
 
 	auto column_name = this->ToString();
-	auto* columnAttr = translationContext.getAttribute(column_name);
+	auto binding = this->binding;
+	std::cout << "[BoundColumnRefExpression](translateExpression) :: column name :: " << column_name << " binding :: " << binding.ToString() << std::endl;
+	auto& columnAttr = op->resolveColumnBindingToAttributeInfo(binding);
 	auto currentTuple = translationContext.getCurrentTuple();
 	return predBuilder.create<lingodb::compiler::dialect::tuples::GetColumnOp>(
-		loc, columnAttr->type, attrManager.createRef(columnAttr), translationContext.getCurrentTuple());
+		loc, columnAttr.column->type, attrManager.createRef(columnAttr.column), translationContext.getCurrentTuple());
 }
 
 BoundColumnRefExpression::BoundColumnRefExpression(LogicalType type, ColumnBinding binding, idx_t depth)

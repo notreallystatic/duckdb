@@ -20,7 +20,7 @@ BoundFunctionExpression::BoundFunctionExpression(LogicalType return_type, Scalar
 }
 
 mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext& translationContext,
-	mlir::OpBuilder& builder) {
+	mlir::OpBuilder& builder, LogicalOperator *op) {
 	auto loc = builder.getUnknownLoc();
 	std::cout << "[BoundFunctionExpression::translateExpression] Translating function :: " << function.name << " children :: " << children.size() << std::endl;
 	// to_days(CAST(trunc(CAST('90' AS DOUBLE)) AS INTEGER)))
@@ -55,39 +55,39 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 				auto dateType = lingodb::compiler::dialect::db::DateType::get(builder.getContext(), lingodb::compiler::dialect::db::DateUnitAttr::day);
 				auto leftVal = builder.create<lingodb::compiler::dialect::db::ConstantOp>(
 					loc, dateType, builder.getStringAttr(dateValueStr));
-				auto rightVal = children[1]->translateExpression(translationContext, builder);
+				auto rightVal = children[1]->translateExpression(translationContext, builder, op);
 				return builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, leftVal.getType(), "DateSubtract", mlir::ValueRange({ leftVal, rightVal })).getRes();
 			} else  {
-				auto leftVal = children[0]->translateExpression(translationContext, builder);
-				auto rightVal = children[1]->translateExpression(translationContext, builder);
+				auto leftVal = children[0]->translateExpression(translationContext, builder, op);
+				auto rightVal = children[1]->translateExpression(translationContext, builder, op);
 				return builder.create<lingodb::compiler::dialect::db::SubOp>(loc, leftVal, rightVal);
 			}
 		}
 	}
 	else if (function.name == LikeFun::Name) {
 		D_ASSERT(children.size() == 2);
-		auto leftVal = children[0]->translateExpression(translationContext, builder);
-		auto rightVal = children[1]->translateExpression(translationContext, builder);
+		auto leftVal = children[0]->translateExpression(translationContext, builder, op);
+		auto rightVal = children[1]->translateExpression(translationContext, builder, op);
 		return builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, builder.getI1Type(), "Like", mlir::ValueRange({ leftVal, rightVal })).getRes();
 	}
 	else if (function.name == NotLikeFun::Name) {
 		D_ASSERT(children.size() == 2);
-		auto leftVal = children[0]->translateExpression(translationContext, builder);
-		auto rightVal = children[1]->translateExpression(translationContext, builder);
+		auto leftVal = children[0]->translateExpression(translationContext, builder, op);
+		auto rightVal = children[1]->translateExpression(translationContext, builder, op);
 		auto result = builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, builder.getI1Type(), "Like", mlir::ValueRange({ leftVal, rightVal })).getRes();
 		return builder.create<lingodb::compiler::dialect::db::NotOp>(loc, result).getRes();
 	}
 	else if (function.name == "*") {
 		if (children.size() == 2) {
-			auto leftVal = children[0]->translateExpression(translationContext, builder);
-			auto rightVal = children[1]->translateExpression(translationContext, builder);
+			auto leftVal = children[0]->translateExpression(translationContext, builder, op);
+			auto rightVal = children[1]->translateExpression(translationContext, builder, op);
 			return builder.create<lingodb::compiler::dialect::db::MulOp>(loc, leftVal, rightVal);
 		}
 	}
 	else if (function.name == "+") {
 		if (children.size() == 2) {
-			auto leftVal = children[0]->translateExpression(translationContext, builder);
-			auto rightVal = children[1]->translateExpression(translationContext, builder);
+			auto leftVal = children[0]->translateExpression(translationContext, builder, op);
+			auto rightVal = children[1]->translateExpression(translationContext, builder, op);
 			return builder.create<lingodb::compiler::dialect::db::AddOp>(loc, leftVal, rightVal);
 		}
 	}

@@ -44,6 +44,13 @@ void LogicalFilter::Walk(int depth) {
 	}
 }
 
+MLIRAttributeInfo& LogicalFilter::resolveColumnBindingToAttributeInfo(ColumnBinding& binding) {
+	if (children.empty()) {
+		throw std::runtime_error("No children to resolve column binding to attribute info for binding " + binding.ToString());
+	}
+	return children[0]->resolveColumnBindingToAttributeInfo(binding);
+}
+
 LogicalFilter::LogicalFilter(unique_ptr<Expression> expression) : LogicalOperator(LogicalOperatorType::LOGICAL_FILTER) {
 	expressions.push_back(std::move(expression));
 	LogicalFilter::found_conjunction_and = SplitPredicates(expressions);
@@ -134,7 +141,7 @@ void LogicalFilter::resolveMLIRValue(MLIRTranslationContext &translationContext,
 	predBuilder.setInsertionPointToStart(predBlock);
 
 	// Add the expression and return it as a result.
-	mlir::Value resultExpr = expressions[0]->translateExpression(translationContext, predBuilder);
+	mlir::Value resultExpr = expressions[0]->translateExpression(translationContext, predBuilder, this);
 	predBuilder.create<lingodb::compiler::dialect::tuples::ReturnOp>(loc, resultExpr);
 	auto selectionOp = builder.create<lingodb::compiler::dialect::relalg::SelectionOp>(
 		loc,

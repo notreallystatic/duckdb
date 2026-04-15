@@ -75,6 +75,9 @@ public:
 
 	vector<MLIRAttributeInfo> mlirAttributeInfos; // MLIR attributes for the operator, used for code generation
 
+	bool hasMLIRResolutionSkipped = false;
+	MLIRAttributeInfo* defaultMLIRAttributeInfo = nullptr;
+
 public:
 	mlir::Value getMLIRValue();
 

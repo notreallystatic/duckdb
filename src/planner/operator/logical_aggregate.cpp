@@ -404,7 +404,7 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 			if (childExpr->expression_class == ExpressionClass::BOUND_COLUMN_REF) {
 				continue;
 			}
-			auto resolvedValue = childExpr->translateExpression(translationContext, mapBuilder);
+			auto resolvedValue = childExpr->translateExpression(translationContext, mapBuilder, this);
 			createdValues.push_back(resolvedValue);
 			string columnName = "expr_" + std::to_string(mapArgId++);
 			auto attrDef = attrManager.createDef(mapOpName, columnName);

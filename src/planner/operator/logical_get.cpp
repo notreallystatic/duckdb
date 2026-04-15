@@ -466,10 +466,10 @@ string LogicalGet::GetName() const {
  */
 void LogicalGet::resolveMLIRValue(MLIRTranslationContext &translationContext, MLIRTranslationContext::ResolverScope &scope) {
 	std::cout << "[LogicalGet](resolveMLIRValue) :: " << GetName() << std::endl;
-	const string table_name = getTableName();
-	const string scope_name = table_name;
+	const string unique_table_name = getTableName() + "_" + std::to_string(table_index);
+	const string source_table_name = getTableName();
 
-	std::cout << "[LogicalGet](resolveMLIRValue) :: Resolving MLIR value for table: " << table_name << " table_index :: " << table_index << std::endl;
+	std::cout << "[LogicalGet](resolveMLIRValue) :: Resolving MLIR value for table: " << source_table_name << " table_index :: " << table_index << std::endl;
 
 	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 	D_ASSERT(mlirContainerInstance.getContextPtr() != nullptr);
@@ -547,7 +547,7 @@ void LogicalGet::resolveMLIRValue(MLIRTranslationContext &translationContext, ML
 	auto add_column_to_basetable = [&](const string &col_name, const LogicalType &logical_type) {
 		mlir::Type col_type;
 		if (logical_type.id() == LogicalTypeId::VARCHAR) {
-			auto width = tpch_char_width(table_name, col_name);
+			auto width = tpch_char_width(getTableName(), col_name);
 			if (width == 0) {
 				// Keep varlen-like columns in a bounded fixed-size representation for now;
 				// this avoids backend crashes on db.string materialization in compiled mode.
@@ -557,13 +557,13 @@ void LogicalGet::resolveMLIRValue(MLIRTranslationContext &translationContext, ML
 		} else {
 			col_type = getMLIRTypeFromDuckDBLogicalType(logical_type, &mlirContext);
 		}
-		auto attrDef = attrManager.createDef(scope_name, col_name);
+		auto attrDef = attrManager.createDef(unique_table_name, col_name);
 		attrDef.getColumn().type = col_type;
 		columns.push_back(builder.getNamedAttr(col_name, attrDef));
 		translationContext.mapAttribute(scope, col_name, &attrDef.getColumn());
-		translationContext.mapAttribute(scope, table_name + "." + col_name, &attrDef.getColumn());
+		translationContext.mapAttribute(scope, unique_table_name + "." + col_name, &attrDef.getColumn());
 
-		auto mlirAttrInfo = MLIRAttributeInfo{table_name, col_name, &attrDef.getColumn()};
+		auto mlirAttrInfo = MLIRAttributeInfo{unique_table_name, col_name, &attrDef.getColumn()};
 		mlirAttributeInfos.push_back(mlirAttrInfo);
 	};
 
@@ -584,7 +584,7 @@ void LogicalGet::resolveMLIRValue(MLIRTranslationContext &translationContext, ML
 
 	this->mlirValue = builder.create<lingodb::compiler::dialect::relalg::BaseTableOp>(
 	    builder.getUnknownLoc(),
-	    lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext()), table_name,
+	    lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext()), source_table_name,
 	    builder.getDictionaryAttr(columns));
 
 	// Print the mlie value so far

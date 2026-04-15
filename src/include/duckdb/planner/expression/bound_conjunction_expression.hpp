@@ -16,7 +16,7 @@ class BoundConjunctionExpression : public Expression {
 public:
 	static constexpr const ExpressionClass TYPE = ExpressionClass::BOUND_CONJUNCTION;
 
-	mlir::Value translateExpression(MLIRTranslationContext &translationContext, mlir::OpBuilder &builder) override;
+	mlir::Value translateExpression(MLIRTranslationContext &translationContext, mlir::OpBuilder &builder, LogicalOperator *op) override;
 
 public:
 	explicit BoundConjunctionExpression(ExpressionType type);

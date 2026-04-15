@@ -16,7 +16,7 @@ class BoundOperatorExpression : public Expression {
 public:
 	static constexpr const ExpressionClass TYPE = ExpressionClass::BOUND_OPERATOR;
 
-	mlir::Value translateExpression(MLIRTranslationContext &translationContext, mlir::OpBuilder &builder) override;
+	mlir::Value translateExpression(MLIRTranslationContext &translationContext, mlir::OpBuilder &builder, LogicalOperator *op) override;
 
 public:
 	BoundOperatorExpression(ExpressionType type, LogicalType return_type);
