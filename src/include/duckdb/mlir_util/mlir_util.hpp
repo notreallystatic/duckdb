@@ -12,7 +12,10 @@
 #include "mlir/IR/BuiltinDialect.h"
 // #include "duckdb/main/client_context.hpp"
 
+#include "duckdb/planner/column_binding.hpp"
+
 #include <stack>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 #include <chrono>
@@ -69,6 +72,34 @@ public:
 
 	void replace(ResolverScope &scope, const lingodb::compiler::dialect::tuples::Column *col,
 	             const lingodb::compiler::dialect::tuples::Column *col2);
+
+	// Map from ColumnBinding to pre-computed scalar MLIR values (for uncorrelated scalar subqueries)
+	struct ColumnBindingHash {
+		size_t operator()(const duckdb::ColumnBinding &b) const {
+			return std::hash<idx_t>()(b.table_index) ^ (std::hash<idx_t>()(b.column_index) << 32);
+		}
+	};
+	struct ColumnBindingEqual {
+		bool operator()(const duckdb::ColumnBinding &a, const duckdb::ColumnBinding &b) const {
+			return a.table_index == b.table_index && a.column_index == b.column_index;
+		}
+	};
+
+	// Deferred scalar subquery info: stores the stream and column needed to emit relalg.getscalar
+	// lazily inside the predicate block where it's actually used.
+	struct DeferredScalarInfo {
+		mlir::Value subqueryStream;
+		const lingodb::compiler::dialect::tuples::Column *column;
+	};
+	std::unordered_map<duckdb::ColumnBinding, DeferredScalarInfo, ColumnBindingHash, ColumnBindingEqual> deferredScalarSubqueries;
+
+	// Deferred EXISTS callbacks: keyed by the MARK join's "mark" ColumnBinding.
+	// Set by LogicalDependentJoin(MARK) so that BoundColumnRefExpression can intercept
+	// the mark column reference and emit relalg.exists inside the predicate block.
+	std::unordered_map<duckdb::ColumnBinding,
+	                   std::function<mlir::Value(mlir::OpBuilder &)>,
+	                   ColumnBindingHash, ColumnBindingEqual>
+	    deferredExistsCallbacks;
 };
 struct DefineScope {
 public:

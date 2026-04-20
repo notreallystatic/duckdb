@@ -383,44 +383,14 @@ static bool IsExplainAnalyze(SQLStatement *statement) {
 	return explain.explain_type == ExplainType::EXPLAIN_ANALYZE;
 }
 
-shared_ptr<PreparedStatementData>
-ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const string &query,
-                                               unique_ptr<SQLStatement> statement,
-                                               optional_ptr<case_insensitive_map_t<BoundParameterData>> values) {
-	StatementType statement_type = statement->type;
-	auto result = make_shared_ptr<PreparedStatementData>(statement_type);
-
-	auto &profiler = QueryProfiler::Get(*this);
-	profiler.StartQuery(query, IsExplainAnalyze(statement.get()), true);
-	profiler.StartPhase(MetricsType::PLANNER);
-	Planner logical_planner(*this);
-	if (values) {
-		auto &parameter_values = *values;
-		for (auto &value : parameter_values) {
-			logical_planner.parameter_data.emplace(value.first, BoundParameterData(value.second));
-		}
-	}
-
-	logical_planner.CreatePlan(std::move(statement));
-	D_ASSERT(logical_planner.plan || !logical_planner.properties.bound_all_parameters);
-	profiler.EndPhase();
-
-	auto logical_plan = std::move(logical_planner.plan);
-
-	// extract the result column names from the plan
-	result->properties = logical_planner.properties;
-	result->names = logical_planner.names;
-	result->types = logical_planner.types;
-	result->value_map = std::move(logical_planner.value_map);
-	if (!logical_planner.properties.bound_all_parameters) {
-		return result;
-	}
-
+void ClientContext::compileQuery(LogicalOperator* logical_plan) {
 	try {
 		logical_plan->Walk(0);
 	} catch (std::exception &ex) {
 		std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
 	}
+
+
 	try {
 		std::cout << "[ClientContext](CreatePreparedStatementInternal) :: Starting to resolve MLIR values for the logical plan\n";
 		lingodb::execution::MLIRContainer::reset();
@@ -443,8 +413,10 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 					translationContext.clientContext = this;
 					auto scope = translationContext.createResolverScope();
 					logical_plan->resolveMLIRValue(translationContext, scope);
+					std::cerr << "[DEBUG] client_context: resolveMLIRValue done" << std::endl;
 
 					auto materializeValue = logical_plan->getMLIRValue();
+					std::cerr << "[DEBUG] client_context: getMLIRValue done" << std::endl;
 					LogicalOperator::setMaterializeInput(materializeValue);
 
 					std::cout << "[ClientContext](CreatePreparedStatementInternal) :: Finished resolving MLIR values for the logical plan\n";
@@ -461,11 +433,47 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 	} catch (std::exception &ex) {
 		std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
 	}
+
+}
+
+shared_ptr<PreparedStatementData>
+ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const string &query,
+                                               unique_ptr<SQLStatement> statement,
+                                               optional_ptr<case_insensitive_map_t<BoundParameterData>> values) {
+	StatementType statement_type = statement->type;
+	auto result = make_shared_ptr<PreparedStatementData>(statement_type);
+
+	auto &profiler = QueryProfiler::Get(*this);
+	profiler.StartQuery(query, IsExplainAnalyze(statement.get()), true);
+	profiler.StartPhase(MetricsType::PLANNER);
+	Planner logical_planner(*this, COMPILE_QUERIES ? *COMPILE_QUERIES : false);
+	if (values) {
+		auto &parameter_values = *values;
+		for (auto &value : parameter_values) {
+			logical_planner.parameter_data.emplace(value.first, BoundParameterData(value.second));
+		}
+	}
+
+	logical_planner.CreatePlan(std::move(statement));
+	D_ASSERT(logical_planner.plan || !logical_planner.properties.bound_all_parameters);
+	profiler.EndPhase();
+
+	auto logical_plan = std::move(logical_planner.plan);
+
+	// extract the result column names from the plan
+	result->properties = logical_planner.properties;
+	result->names = logical_planner.names;
+	result->types = logical_planner.types;
+	result->value_map = std::move(logical_planner.value_map);
+	if (!logical_planner.properties.bound_all_parameters) {
+		return result;
+	}
+
 #ifdef DEBUG
 	logical_plan->Verify(*this);
 #endif
 	if (config.enable_optimizer && logical_plan->RequireOptimizer()) {
-		// std::cout << "Optimizing the logical plan now :: \n";
+		std::cout << "Optimizing the logical plan now :: \n";
 		profiler.StartPhase(MetricsType::ALL_OPTIMIZERS);
 		Optimizer optimizer(*logical_planner.binder, *this);
 		logical_plan = optimizer.Optimize(std::move(logical_plan));
@@ -476,7 +484,6 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 		logical_plan->Verify(*this);
 #endif
 	}
-
 	if (compile_queries) {
 		profiler.StartPhase(MetricsType::COMPILE_AND_RUN_QUERIES);
 		std::cout << "[ClientContext] (CreatePreparedStatementInternal) running the compiled plan :: \n";
@@ -488,6 +495,7 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 			return result;
 		}
 	}
+
 
 	// Convert the logical query plan into a physical query plan.
 	profiler.StartPhase(MetricsType::PHYSICAL_PLANNER);

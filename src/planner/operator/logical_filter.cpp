@@ -117,6 +117,7 @@ bool LogicalFilter::SplitPredicates(vector<unique_ptr<Expression>> &expressions)
  */
 void LogicalFilter::resolveMLIRValue(MLIRTranslationContext &translationContext, MLIRTranslationContext::ResolverScope &scope) {
 	for (auto &child : children) {
+		child->parentColumnBindings = this->parentColumnBindings; // Pass down parent column bindings to children
 		child->resolveMLIRValue(translationContext, scope);
 	}
 
@@ -153,14 +154,7 @@ void LogicalFilter::resolveMLIRValue(MLIRTranslationContext &translationContext,
 	this->mlirValue = selectionOp.getResult();
 
 	std::cout << "LogicalFilter MLIR Value :: " << std::endl;
-	auto op = selectionOp.getOperation();
-	if (op && op->getBlock()) {
-		op->getBlock()->print(llvm::outs());
-		llvm::outs() << "\n";
-	}
-
-	std::cout.flush();
-	this->mlirValue.print(llvm::outs());
+	std::cerr << "[DEBUG] LogicalFilter: done" << std::endl;
 	std::cout << std::endl;
 }
 

@@ -32,6 +32,9 @@ public:
 
 	explicit LogicalDependentJoin(JoinType type);
 
+	void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&) override;
+	MLIRAttributeInfo& resolveColumnBindingToAttributeInfo(ColumnBinding& binding) override;
+
 	//! The conditions of the join
 	unique_ptr<Expression> join_condition;
 	//! The list of columns that have correlations with the right

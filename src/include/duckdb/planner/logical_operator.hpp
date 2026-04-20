@@ -40,6 +40,7 @@
 #include <algorithm>
 #include <functional>
 #include <optional>
+#include <deque>
 
 namespace duckdb {
 
@@ -77,6 +78,7 @@ public:
 
 	bool hasMLIRResolutionSkipped = false;
 	MLIRAttributeInfo* defaultMLIRAttributeInfo = nullptr;
+	std::deque<LogicalOperator*> parentColumnBindings;
 
 public:
 	mlir::Value getMLIRValue();

@@ -54,6 +54,12 @@ mlir::Value BoundConstantExpression::translateExpression(MLIRTranslationContext&
 			loc, type,
 			builder.getStringAttr(value.ToString()));
 	}
+	case LogicalTypeId::DECIMAL: {
+		auto type = getMLIRTypeFromDuckDBLogicalType(value.type(), builder.getContext());
+		return builder.create<lingodb::compiler::dialect::db::ConstantOp>(
+			loc, type,
+			builder.getStringAttr(value.ToString()));
+	}
 	default: {
 		std::cout << "[BoundConstantExpression::translateExpression] Unhandled constant type :: " << value.type().ToString()
 			<< std::endl;

@@ -23,9 +23,10 @@ class Planner {
 	friend class Binder;
 
 public:
-	explicit Planner(ClientContext &context);
+	explicit Planner(ClientContext &context, bool compile_queries = false);
 
 public:
+	bool compile_queries;
 	unique_ptr<LogicalOperator> plan;
 	vector<string> names;
 	vector<LogicalType> types;

@@ -11,6 +11,7 @@ LogicalOrder::LogicalOrder(vector<BoundOrderByNode> orders)
 
 void LogicalOrder::resolveMLIRValue(MLIRTranslationContext &translationContext, MLIRTranslationContext::ResolverScope &scope) {
 	std::cout << "[LogicalOrder](resolveMLIRValue) :: Resolving MLIR Value for LogicalOrder" << std::endl;
+	std::cerr << "[DEBUG] LogicalOrder: start" << std::endl;
 	std::cout.flush();
 
 	if (children.size() != 1) {

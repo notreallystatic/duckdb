@@ -19,7 +19,7 @@
 
 namespace duckdb {
 
-Planner::Planner(ClientContext &context) : binder(Binder::CreateBinder(context)), context(context) {
+Planner::Planner(ClientContext &context, bool compile_queries) : binder(Binder::CreateBinder(context)), context(context), compile_queries(compile_queries) {
 }
 
 static void CheckTreeDepth(const LogicalOperator &op, idx_t max_depth, idx_t depth = 0) {
@@ -50,6 +50,10 @@ void Planner::CreatePlan(SQLStatement &statement) {
 		this->plan = std::move(bound_statement.plan);
 		auto max_tree_depth = ClientConfig::GetConfig(context).max_expression_depth;
 		CheckTreeDepth(*plan, max_tree_depth);
+
+		if (compile_queries) {
+			context.compileQuery(plan.get());
+		}
 
 		this->plan = FlattenDependentJoins::DecorrelateIndependent(*binder, std::move(this->plan));
 	} catch (const std::exception &ex) {

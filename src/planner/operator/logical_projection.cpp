@@ -3,11 +3,19 @@
 
 #include "duckdb/main/config.hpp"
 
+#include "lingodb/execution/Frontend.h"
+#include "lingodb/compiler/Dialect/TupleStream/TupleStreamDialect.h"
+#include "lingodb/compiler/Dialect/TupleStream/TupleStreamOps.h"
+#include "lingodb/compiler/Dialect/RelAlg/IR/RelAlgOps.h"
+#include "lingodb/compiler/Dialect/DB/IR/DBOps.h"
+#include "mlir/IR/Builders.h"
+
 #include <iostream>
 
 namespace relalg = lingodb::compiler::dialect::relalg;
 namespace tuples = lingodb::compiler::dialect::tuples;
 namespace subop = lingodb::compiler::dialect::subop;
+namespace db = lingodb::compiler::dialect::db;
 
 namespace duckdb {
 
@@ -27,6 +35,11 @@ MLIRAttributeInfo& LogicalProjection::resolveColumnBindingToAttributeInfo(Column
 				throw std::runtime_error("Default MLIR attribute info is not set for this projection");
 			}
 			return *defaultMLIRAttributeInfo;
+		}
+		// If this projection created a map op for computed expressions, return the stored attribute info
+		if (!mlirAttributeInfos.empty() && columnIndex < mlirAttributeInfos.size()) {
+			std::cout << "[LogicalProjection](resolveColumnBindingToAttributeInfo) :: Returning map attribute info for binding " << binding.ToString() << std::endl;
+			return mlirAttributeInfos[columnIndex];
 		}
 		auto expr = expressions[columnIndex].get();
 		if (expr->type != ExpressionType::BOUND_COLUMN_REF) {
@@ -108,6 +121,7 @@ void LogicalProjection::resolveMLIRValue(MLIRTranslationContext& translationCont
 		```
 		We need to ignore this in case of codegen because we don't have any mechanism to throw this error in the generated code.
 	*/
+	children[0]->parentColumnBindings = this->parentColumnBindings; // Pass down parent
 	auto hasCaseExpression = std::any_of(expressions.begin(), expressions.end(), [](const auto &expr) {
 		return expr->type == ExpressionType::CASE_EXPR;
 	});
@@ -134,6 +148,65 @@ void LogicalProjection::resolveMLIRValue(MLIRTranslationContext& translationCont
 	}
 	for (const auto &child: children) {
 		child->resolveMLIRValue(translationContext, scope);
+	}
+	std::cerr << "[DEBUG] LogicalProjection: children resolved for table_index " << table_index << std::endl;
+
+	// After resolving children, check if any expression is a computed expression (not a simple column ref).
+	// If so, create a relalg.map operation to compute those expressions.
+	bool hasComputedExpr = std::any_of(expressions.begin(), expressions.end(), [](const auto &expr) {
+		return expr->type != ExpressionType::BOUND_COLUMN_REF;
+	});
+
+	if (hasComputedExpr) {
+		std::cout << "[LogicalProjection](resolveMLIRValue) :: Projection has computed expressions, creating relalg.map" << std::endl;
+
+		auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
+		auto &builder = mlirContainerInstance.getBuilder();
+		auto &mlirContext = mlirContainerInstance.getContext();
+		auto module = mlirContainerInstance.getModuleOp();
+		auto loc = builder.getUnknownLoc();
+		tuples::ColumnManager &attrManager =
+		    module.getContext()->getLoadedDialect<tuples::TupleStreamDialect>()->getColumnManager();
+		auto tupleStreamType = tuples::TupleStreamType::get(builder.getContext());
+
+		auto childValue = children[0]->getMLIRValue();
+
+		auto *block = new mlir::Block();
+		block->addArgument(tuples::TupleType::get(builder.getContext()), loc);
+
+		auto tupleScope = translationContext.createTupleScope();
+		translationContext.setCurrentTuple(block->getArgument(0));
+
+		mlir::OpBuilder mapBuilder(&mlirContext);
+		mapBuilder.setInsertionPointToStart(block);
+
+		static size_t projMapOpId = 0;
+		static size_t projMapArgId = 0;
+		string mapOpName = "proj_map_" + std::to_string(projMapOpId++);
+
+		std::vector<mlir::Value> createdValues;
+		std::vector<mlir::Attribute> createdCols;
+
+		for (idx_t i = 0; i < expressions.size(); ++i) {
+			auto resolvedValue = expressions[i]->translateExpression(translationContext, mapBuilder, this);
+			createdValues.push_back(resolvedValue);
+
+			string columnName = "expr_" + std::to_string(projMapArgId++);
+			auto attrDef = attrManager.createDef(mapOpName, columnName);
+			attrDef.getColumn().type = resolvedValue.getType();
+			createdCols.push_back(attrDef);
+
+			mlirAttributeInfos.push_back(MLIRAttributeInfo{mapOpName, columnName, &attrDef.getColumn()});
+		}
+
+		auto mapOp = builder.create<relalg::MapOp>(loc, tupleStreamType, childValue, builder.getArrayAttr(createdCols));
+		mapOp.getRegion().push_back(block);
+		mapBuilder.create<tuples::ReturnOp>(loc, createdValues);
+
+		this->mlirValue = mapOp.getResult();
+		std::cout << "[LogicalProjection](resolveMLIRValue) :: Created MapOp for projection: ";
+		this->mlirValue.print(llvm::outs());
+		std::cout << std::endl;
 	}
 }
 

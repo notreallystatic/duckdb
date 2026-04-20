@@ -250,8 +250,9 @@ MLIRAttributeInfo& LogicalAggregate::resolveColumnBindingToAttributeInfo(ColumnB
 		return this->children[0]->resolveColumnBindingToAttributeInfo(exprColBinding);
 	}
 	else {
-		std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Invalid table index " << binding.table_index << " for LogicalAggregate" << std::endl;
-		throw std::runtime_error("Invalid table index " + std::to_string(binding.table_index) + " for LogicalAggregate");
+		// Try to resolve the binding in the child operator(s)
+		std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Resolving column binding " << binding.ToString() << " in child operator(s)" << std::endl;
+		return this->children[0]->resolveColumnBindingToAttributeInfo(binding);
 	}
 }
 

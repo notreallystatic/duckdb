@@ -1,5 +1,13 @@
 #include "duckdb/planner/operator/logical_cross_product.hpp"
+#include "duckdb/planner/operator/logical_projection.hpp"
 #include <algorithm>
+
+#include "lingodb/execution/Frontend.h"
+#include "lingodb/compiler/Dialect/TupleStream/TupleStreamDialect.h"
+#include "lingodb/compiler/Dialect/TupleStream/TupleStreamOps.h"
+#include "lingodb/compiler/Dialect/RelAlg/IR/RelAlgOps.h"
+#include "lingodb/compiler/Dialect/DB/IR/DBOps.h"
+#include "mlir/IR/Builders.h"
 
 namespace duckdb {
 
@@ -21,6 +29,27 @@ void LogicalCrossProduct::resolveMLIRValue(MLIRTranslationContext& context, MLIR
 	std::cout << "[LogicalCrossProduct](resolveMLIRValue) :: Resolving MLIR value for LogicalCrossProduct" << std::endl;
 	children[0]->resolveMLIRValue(context, scope);
 	children[1]->resolveMLIRValue(context, scope);
+
+	// Check if the right child is a scalar subquery wrapper (PROJECTION with CASE that was skipped)
+	if (children[1]->hasMLIRResolutionSkipped && children[1]->defaultMLIRAttributeInfo != nullptr) {
+		std::cout << "[LogicalCrossProduct](resolveMLIRValue) :: Right child is a scalar subquery (CASE projection was skipped), deferring relalg.getscalar" << std::endl;
+
+		// The right child's getMLIRValue() falls through to the actual subquery aggregate/map
+		auto subqueryStream = children[1]->getMLIRValue();
+		auto *subqueryColumn = children[1]->defaultMLIRAttributeInfo->column;
+
+		// Register deferred scalar info for the right child's column bindings
+		// The actual relalg.getscalar will be emitted inside the predicate block where it's used
+		auto rightBindings = children[1]->GetColumnBindings();
+		for (auto &binding : rightBindings) {
+			std::cout << "[LogicalCrossProduct](resolveMLIRValue) :: Registering deferred scalar subquery for binding " << binding.ToString() << std::endl;
+			context.deferredScalarSubqueries[binding] = {subqueryStream, subqueryColumn};
+		}
+
+		// The cross product's MLIR value is just the left child — no cross product needed
+		this->mlirValue = children[0]->getMLIRValue();
+		return;
+	}
 
 	auto leftValue = children[0]->getMLIRValue();
 	auto rightValue = children[1]->getMLIRValue();

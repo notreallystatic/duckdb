@@ -98,6 +98,8 @@ public:
 	//! Read whether query compilation should be enabled
 	void readCompileConfig();
 
+	void compileQuery(LogicalOperator* logical_plan);
+
 	//! Interrupt execution of a query
 	DUCKDB_API void Interrupt();
 	DUCKDB_API void CancelTransaction();
