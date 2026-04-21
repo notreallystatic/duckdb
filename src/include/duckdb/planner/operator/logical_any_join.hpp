@@ -21,6 +21,12 @@ public:
 public:
 	explicit LogicalAnyJoin(JoinType type);
 
+	void Walk(int depth = 0) override;
+	void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&) override;
+	MLIRAttributeInfo& resolveColumnBindingToAttributeInfo(ColumnBinding& binding) override;
+
+
+
 	//! The JoinCondition on which this join is performed
 	unique_ptr<Expression> condition;
 
