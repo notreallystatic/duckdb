@@ -362,9 +362,10 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 			for (const auto& child : bound_agg.children) {
 				if (child->expression_class == ExpressionClass::BOUND_COLUMN_REF) {
 					auto& colRefExpr = child->Cast<BoundColumnRefExpression>();
-					auto columnName = colRefExpr.ToString();
-					auto columnAttr = translationContext.getAttribute(columnName);
-					resolvedColumnAttrs[i] = columnAttr;
+					auto columnBinding = colRefExpr.binding;
+					std::cout << "[LogicalAggregate](resolveMLIRValue) :: Resolving column binding " << columnBinding.ToString() << " for aggregate expression at index " << i << std::endl;
+					auto columnAttrInfo = resolveColumnBindingToAttributeInfo(columnBinding);
+					resolvedColumnAttrs[i] = columnAttrInfo.column;
 				}
 				else {
 					isMapOperationRequired = true;
@@ -442,8 +443,8 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 		auto& colRefExpr = groupByExpr->Cast<BoundColumnRefExpression>();
 		auto columnName = colRefExpr.ToString();
 		std::cout << "[LogicalAggregate](resolveMLIRValue) :: Group by column name :: " << columnName << std::endl;
-		auto columnAttr = translationContext.getAttribute(columnName);
-		groupByAttrs.push_back(attrManager.createRef(columnAttr));
+		auto columnAttrInfo = resolveColumnBindingToAttributeInfo(colRefExpr.binding);
+		groupByAttrs.push_back(attrManager.createRef(columnAttrInfo.column));
 	}
 	for (int i = 0; i < expressions.size(); ++i) {
 		string columnName = "aggr_arg_" + std::to_string(aggrArgId++);

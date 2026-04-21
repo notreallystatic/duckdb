@@ -41,6 +41,10 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 		return builder.create<lingodb::compiler::dialect::db::ConstantOp>(
 			loc, lingodb::compiler::dialect::db::IntervalType::get(builder.getContext(), lingodb::compiler::dialect::db::IntervalUnitAttr::daytime),
 			builder.getStringAttr(childValueStr + "days"));
+	} else if (function.name == "date_part") {
+		auto datePart = children[0]->translateExpression(translationContext, builder, op);
+		auto columnVal = children[1]->translateExpression(translationContext, builder, op);
+		return builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, builder.getI64Type(), "ExtractFromDate", mlir::ValueRange({ datePart, columnVal })).getRes();
 	}
 	else if (function.name == "-") {
 		if (children.size() == 2) {
