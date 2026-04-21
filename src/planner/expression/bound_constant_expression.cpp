@@ -22,7 +22,26 @@ mlir::Value BoundConstantExpression::translateExpression(MLIRTranslationContext&
 	}
 	case LogicalTypeId::VARCHAR: {
 		auto strVal = value.GetValue<string>();
-		auto strType = lingodb::compiler::dialect::db::StringType::get(builder.getContext());
+		// Match LingoDB's own SQL frontend (see lingodb_ext Parser.cpp T_String case):
+		// string literals are emitted as !db.char<len>, not !db.string.
+		//
+		// This is required because LingoDB's QueryGraph::buildEvalExpr asserts
+		// that char<1> values are never db.cast-ed to !db.string — the
+		// expectation is that the constant on the other side of the comparison
+		// is itself a char<1>, so no cast is ever emitted on the column value.
+		// When a string literal is later compared against a genuine !db.string
+		// column (e.g. c_comment), SQLTypeInference::castValueToType mutates
+		// this ConstantOp's type in place to !db.string instead of inserting a
+		// db.cast, so the invariant still holds.
+		//
+		// Empty string literals fall back to !db.string since char<0> is not a
+		// meaningful LingoDB type.
+		mlir::Type strType;
+		if (strVal.empty()) {
+			strType = lingodb::compiler::dialect::db::StringType::get(builder.getContext());
+		} else {
+			strType = lingodb::compiler::dialect::db::CharType::get(builder.getContext(), strVal.size());
+		}
 		return builder.create<lingodb::compiler::dialect::db::ConstantOp>(loc, strType,
 			builder.getStringAttr(strVal));
 		break;

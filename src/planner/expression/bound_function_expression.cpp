@@ -72,13 +72,21 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 		D_ASSERT(children.size() == 2);
 		auto leftVal = children[0]->translateExpression(translationContext, builder, op);
 		auto rightVal = children[1]->translateExpression(translationContext, builder, op);
-		return builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, builder.getI1Type(), "Like", mlir::ValueRange({ leftVal, rightVal })).getRes();
+		// Match LingoDB's own frontend (Parser.cpp COMPARE_LIKE): normalize both
+		// operands to a common base type before handing them to the Like runtime
+		// call. Now that VARCHAR literals are emitted as !db.char<len>, the
+		// pattern would otherwise reach the runtime call as char<N>.
+		auto likeOperands = lingodb::compiler::frontend::sql::SQLTypeInference::toCommonBaseTypes(
+			builder, {leftVal, rightVal});
+		return builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, builder.getI1Type(), "Like", mlir::ValueRange({ likeOperands[0], likeOperands[1] })).getRes();
 	}
 	else if (function.name == NotLikeFun::Name) {
 		D_ASSERT(children.size() == 2);
 		auto leftVal = children[0]->translateExpression(translationContext, builder, op);
 		auto rightVal = children[1]->translateExpression(translationContext, builder, op);
-		auto result = builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, builder.getI1Type(), "Like", mlir::ValueRange({ leftVal, rightVal })).getRes();
+		auto likeOperands = lingodb::compiler::frontend::sql::SQLTypeInference::toCommonBaseTypes(
+			builder, {leftVal, rightVal});
+		auto result = builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, builder.getI1Type(), "Like", mlir::ValueRange({ likeOperands[0], likeOperands[1] })).getRes();
 		return builder.create<lingodb::compiler::dialect::db::NotOp>(loc, result).getRes();
 	}
 	else if (function.name == "*") {
