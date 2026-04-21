@@ -41,7 +41,20 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 		return builder.create<lingodb::compiler::dialect::db::ConstantOp>(
 			loc, lingodb::compiler::dialect::db::IntervalType::get(builder.getContext(), lingodb::compiler::dialect::db::IntervalUnitAttr::daytime),
 			builder.getStringAttr(childValueStr + "days"));
-	} else if (function.name == "date_part") {
+	} else if (function.name == "to_years") {
+		Value childValue;
+		string childValueStr;
+		D_ASSERT(children.size() == 1);
+		bool isChildEvaluated = ExpressionExecutor::TryEvaluateScalar(*translationContext.clientContext, *children[0], childValue);
+		std::cout << "[BoundFunctionExpression::translateExpression] Is child function evaluated? :: " << isChildEvaluated << std::endl;
+		auto yearValue = childValue.GetValueUnsafe<int32_t>();
+		auto monthValue = yearValue * 12; // Convert years to months
+		childValueStr = to_string(monthValue);
+		return builder.create<lingodb::compiler::dialect::db::ConstantOp>(
+			loc, lingodb::compiler::dialect::db::IntervalType::get(builder.getContext(), lingodb::compiler::dialect::db::IntervalUnitAttr::months),
+			builder.getStringAttr(childValueStr));
+	}
+	 else if (function.name == "date_part") {
 		auto datePart = children[0]->translateExpression(translationContext, builder, op);
 		auto columnVal = children[1]->translateExpression(translationContext, builder, op);
 		return builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, builder.getI64Type(), "ExtractFromDate", mlir::ValueRange({ datePart, columnVal })).getRes();
@@ -98,9 +111,24 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 	}
 	else if (function.name == "+") {
 		if (children.size() == 2) {
-			auto leftVal = children[0]->translateExpression(translationContext, builder, op);
-			auto rightVal = children[1]->translateExpression(translationContext, builder, op);
-			return builder.create<lingodb::compiler::dialect::db::AddOp>(loc, leftVal, rightVal);
+			if (children[0]->return_type.id() == LogicalTypeId::DATE &&
+				children[1]->GetExpressionClass() == ExpressionClass::BOUND_FUNCTION) {
+				Value dateValue;
+				string dateValueStr;
+				bool isDateEvaluated = ExpressionExecutor::TryEvaluateScalar(*translationContext.clientContext, *children[0], dateValue);
+				std::cout << "[BoundFunctionExpression::translateExpression] Is date child function evaluated? :: " << isDateEvaluated << std::endl;
+				dateValueStr = dateValue.ToString();
+				auto dateType = lingodb::compiler::dialect::db::DateType::get(builder.getContext(), lingodb::compiler::dialect::db::DateUnitAttr::day);
+				auto leftVal = builder.create<lingodb::compiler::dialect::db::ConstantOp>(
+					loc, dateType, builder.getStringAttr(dateValueStr));
+				auto rightVal = children[1]->translateExpression(translationContext, builder, op);
+				return builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, leftVal.getType(), "DateAdd", mlir::ValueRange({ leftVal, rightVal })).getRes();
+			}
+			else {
+				auto leftVal = children[0]->translateExpression(translationContext, builder, op);
+				auto rightVal = children[1]->translateExpression(translationContext, builder, op);
+				return builder.create<lingodb::compiler::dialect::db::AddOp>(loc, leftVal, rightVal);
+			}
 		}
 	}
 	else if (function.name == "/") {
