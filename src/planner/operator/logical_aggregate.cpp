@@ -327,6 +327,8 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 		throw std::runtime_error("Expected exactly one child for LogicalAggregate but found " + std::to_string(children.size()));
 	}
 
+	children[0]->parentColumnBindings = this->parentColumnBindings; // Pass down parent column bindings to child
+
 	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 	auto &builder = mlirContainerInstance.getBuilder();
 	auto &context = mlirContainerInstance.getContext();

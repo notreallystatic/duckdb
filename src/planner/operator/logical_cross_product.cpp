@@ -27,6 +27,8 @@ MLIRAttributeInfo& LogicalCrossProduct::resolveColumnBindingToAttributeInfo(Colu
 
 void LogicalCrossProduct::resolveMLIRValue(MLIRTranslationContext& context, MLIRTranslationContext::ResolverScope& scope) {
 	std::cout << "[LogicalCrossProduct](resolveMLIRValue) :: Resolving MLIR value for LogicalCrossProduct" << std::endl;
+	children[0]->parentColumnBindings = this->parentColumnBindings; // Pass down parent
+	children[1]->parentColumnBindings = this->parentColumnBindings;
 	children[0]->resolveMLIRValue(context, scope);
 	children[1]->resolveMLIRValue(context, scope);
 
