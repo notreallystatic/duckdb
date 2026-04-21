@@ -37,6 +37,9 @@ public:
 
 	bool Equals(const BaseExpression &other) const override;
 
+	mlir::Value translateExpression(MLIRTranslationContext &context, mlir::OpBuilder &builder,
+	                                LogicalOperator *op) override;
+
 	unique_ptr<Expression> Copy() const override;
 
 	void Serialize(Serializer &serializer) const override;

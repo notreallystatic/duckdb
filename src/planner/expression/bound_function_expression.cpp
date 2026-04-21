@@ -95,6 +95,37 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 			return builder.create<lingodb::compiler::dialect::db::AddOp>(loc, leftVal, rightVal);
 		}
 	}
+	else if (function.name == "/") {
+		if (children.size() == 2) {
+			// Strip CAST(x AS DOUBLE) wrappers to keep native decimal precision.
+			auto stripDoubleCast = [](Expression *expr) -> Expression * {
+				if (expr->expression_class == ExpressionClass::BOUND_CAST &&
+				    expr->return_type.id() == LogicalTypeId::DOUBLE) {
+					return expr->Cast<BoundCastExpression>().child.get();
+				}
+				return expr;
+			};
+			auto leftExpr = stripDoubleCast(children[0].get());
+			auto rightExpr = stripDoubleCast(children[1].get());
+			auto leftVal = leftExpr->translateExpression(translationContext, builder, op);
+			auto rightVal = rightExpr->translateExpression(translationContext, builder, op);
+			// Ensure both operands share the same decimal type to avoid mixed i64/i128 lowering.
+			namespace db = lingodb::compiler::dialect::db;
+			auto leftDecimal = mlir::dyn_cast<db::DecimalType>(leftVal.getType());
+			auto rightDecimal = mlir::dyn_cast<db::DecimalType>(rightVal.getType());
+			if (leftDecimal && rightDecimal && leftDecimal != rightDecimal) {
+				// Cast the narrower operand to the wider type.
+				bool leftNarrow = leftDecimal.getP() < rightDecimal.getP() ||
+				                  (leftDecimal.getP() == rightDecimal.getP() && leftDecimal.getS() < rightDecimal.getS());
+				if (leftNarrow) {
+					leftVal = builder.create<db::CastOp>(loc, rightDecimal, leftVal);
+				} else {
+					rightVal = builder.create<db::CastOp>(loc, leftDecimal, rightVal);
+				}
+			}
+			return builder.create<db::DivOp>(loc, leftVal, rightVal);
+		}
+	}
 	std::cout << "[BoundFunctionExpression::translateExpression] Unhandled function :: " << function.name << std::endl;
 	throw std::runtime_error("Unhandled function in MLIR translation :: " + function.name);
 }

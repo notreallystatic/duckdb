@@ -1,7 +1,89 @@
 #include "duckdb/planner/expression/bound_case_expression.hpp"
 #include "duckdb/parser/expression/case_expression.hpp"
+#include "duckdb/common/types.hpp"
+
+#include "lingodb/compiler/Dialect/DB/IR/DBOps.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
+
+#include <iostream>
 
 namespace duckdb {
+
+namespace db = lingodb::compiler::dialect::db;
+
+// Pick the "wider" of two decimal types — prefer higher precision, then higher scale.
+// Non-decimal types fall back to the left type.
+static mlir::Type commonDecimalType(mlir::Type a, mlir::Type b) {
+    auto da = mlir::dyn_cast<db::DecimalType>(a);
+    auto db_ = mlir::dyn_cast<db::DecimalType>(b);
+    if (!da || !db_) return a;
+    if (da.getP() > db_.getP()) return a;
+    if (db_.getP() > da.getP()) return b;
+    return da.getS() >= db_.getS() ? a : b;
+}
+
+// Cast value to targetType only if needed and safe (upcast only for decimals).
+static mlir::Value castToCommon(mlir::OpBuilder &builder, mlir::Value val, mlir::Type target) {
+    if (val.getType() == target) return val;
+    return builder.create<db::CastOp>(builder.getUnknownLoc(), target, val);
+}
+
+// Recursively translate CASE checks starting at index `idx`.
+static mlir::Value translateCaseChecks(
+    const std::vector<BoundCaseCheck> &checks,
+    const std::unique_ptr<Expression> &elseExpr,
+    MLIRTranslationContext &ctx,
+    mlir::OpBuilder &builder,
+    LogicalOperator *op,
+    size_t idx)
+{
+    auto loc = builder.getUnknownLoc();
+
+    // Build then block
+    auto *thenBlock = new mlir::Block();
+    mlir::OpBuilder thenBuilder(builder.getContext());
+    thenBuilder.setInsertionPointToStart(thenBlock);
+    mlir::Value thenVal = checks[idx].then_expr->translateExpression(ctx, thenBuilder, op);
+
+    // Build else block
+    auto *elseBlock = new mlir::Block();
+    mlir::OpBuilder elseBuilder(builder.getContext());
+    elseBuilder.setInsertionPointToStart(elseBlock);
+    mlir::Value elseVal;
+    if (idx + 1 >= checks.size()) {
+        elseVal = elseExpr->translateExpression(ctx, elseBuilder, op);
+    } else {
+        elseVal = translateCaseChecks(checks, elseExpr, ctx, elseBuilder, op, idx + 1);
+    }
+
+    // Pick the widest common type to avoid narrowing casts (which trigger LingoDB lowering bugs).
+    mlir::Type common = commonDecimalType(thenVal.getType(), elseVal.getType());
+
+    thenVal = castToCommon(thenBuilder, thenVal, common);
+    elseVal = castToCommon(elseBuilder, elseVal, common);
+    thenBuilder.create<mlir::scf::YieldOp>(loc, thenVal);
+    elseBuilder.create<mlir::scf::YieldOp>(loc, elseVal);
+
+    // Translate condition
+    auto cond = checks[idx].when_expr->translateExpression(ctx, builder, op);
+    cond = builder.create<db::DeriveTruth>(loc, cond);
+
+    auto ifOp = builder.create<mlir::scf::IfOp>(loc, common, cond, true);
+    ifOp.getThenRegion().getBlocks().clear();
+    ifOp.getElseRegion().getBlocks().clear();
+    ifOp.getThenRegion().push_back(thenBlock);
+    ifOp.getElseRegion().push_back(elseBlock);
+    return ifOp.getResult(0);
+}
+
+mlir::Value BoundCaseExpression::translateExpression(
+    MLIRTranslationContext &ctx, mlir::OpBuilder &builder, LogicalOperator *op)
+{
+    std::cout << "[BoundCaseExpression::translateExpression] Translating CASE expression with "
+              << case_checks.size() << " check(s)" << std::endl;
+    D_ASSERT(!case_checks.empty());
+    return translateCaseChecks(case_checks, else_expr, ctx, builder, op, 0);
+}
 
 BoundCaseExpression::BoundCaseExpression(LogicalType type)
     : Expression(ExpressionType::CASE_EXPR, ExpressionClass::BOUND_CASE, std::move(type)) {
