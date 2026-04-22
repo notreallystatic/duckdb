@@ -174,6 +174,12 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 			}
 			return builder.create<db::DivOp>(loc, leftVal, rightVal);
 		}
+	} else if (function.name == "substring") {
+		D_ASSERT(children.size() == 3);
+		auto strVal = children[0]->translateExpression(translationContext, builder, op);
+		auto posVal = children[1]->translateExpression(translationContext, builder, op);
+		auto lenVal = children[2]->translateExpression(translationContext, builder, op);
+		return builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, strVal.getType(), "Substring", mlir::ValueRange({ strVal, posVal, lenVal })).getRes();
 	}
 	std::cout << "[BoundFunctionExpression::translateExpression] Unhandled function :: " << function.name << std::endl;
 	throw std::runtime_error("Unhandled function in MLIR translation :: " + function.name);
