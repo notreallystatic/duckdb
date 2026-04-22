@@ -32,6 +32,17 @@ mlir::Value BoundColumnRefExpression::translateExpression(MLIRTranslationContext
 		    predBuilder.getUnknownLoc(), predBuilder.getI1Type(), rightValue);
 	}
 
+	// Check if this is a deferred scalar callback (SINGLE dependent join):
+	// builds the right child inside the predicate block, then emits relalg.getscalar.
+	auto scalarCbIt = translationContext.deferredScalarCallbacks.find(binding);
+	if (scalarCbIt != translationContext.deferredScalarCallbacks.end()) {
+		std::cout << "[BoundColumnRefExpression](translateExpression) :: Found deferred scalar callback for binding "
+		          << binding.ToString() << ", invoking callback to build subquery inside predicate block" << std::endl;
+		auto result = scalarCbIt->second(predBuilder);
+		translationContext.deferredScalarCallbacks.erase(scalarCbIt);
+		return result;
+	}
+
 	// Check if this column binding refers to a deferred scalar subquery
 	// If so, emit relalg.getscalar here inside the current predicate block
 	auto scalarIt = translationContext.deferredScalarSubqueries.find(binding);

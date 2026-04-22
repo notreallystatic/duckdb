@@ -30,6 +30,10 @@ mlir::Value BoundOperatorExpression::translateExpression(MLIRTranslationContext&
 					type == ExpressionType::OPERATOR_IS_NOT_NULL));
 		}
 	}
+	case ExpressionType::OPERATOR_NOT: {
+		auto childVal = children[0]->translateExpression(translationContext, predBuilder, op);
+		return predBuilder.create<lingodb::compiler::dialect::db::NotOp>(loc, childVal);
+	}
 	case ExpressionType::COMPARE_IN: {
 		auto leftVal = children[0]->translateExpression(translationContext, predBuilder, op);
 		std::vector<mlir::Value> rightVals;

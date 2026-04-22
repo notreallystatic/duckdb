@@ -100,6 +100,15 @@ public:
 	                   std::function<mlir::Value(mlir::OpBuilder &)>,
 	                   ColumnBindingHash, ColumnBindingEqual>
 	    deferredExistsCallbacks;
+
+	// Deferred scalar callbacks: keyed by the SINGLE join's output ColumnBinding.
+	// Set by LogicalDependentJoin(SINGLE) so that BoundColumnRefExpression can intercept
+	// the scalar column reference, build the right child inside the predicate block,
+	// and emit relalg.getscalar there (ensuring correlated refs are in scope).
+	std::unordered_map<duckdb::ColumnBinding,
+	                   std::function<mlir::Value(mlir::OpBuilder &)>,
+	                   ColumnBindingHash, ColumnBindingEqual>
+	    deferredScalarCallbacks;
 };
 struct DefineScope {
 public:

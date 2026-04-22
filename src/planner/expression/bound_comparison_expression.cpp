@@ -20,8 +20,23 @@ mlir::Value BoundComparisonExpression::translateExpression(MLIRTranslationContex
 	        ->getColumnManager();
 	auto loc = predBuilder.getUnknownLoc();
 
-	auto leftMLIRValue = left->translateExpression(translationContext, predBuilder, op);
-	auto rightMLIRValue = right->translateExpression(translationContext, predBuilder, op);
+	// Strip CAST(x AS DOUBLE) wrappers from decimal operands before translation.
+	// DOUBLE maps to decimal<38,19> which inflates toCommonBaseTypes to decimal<51,19>,
+	// causing comparison failures. Translating the inner decimal directly lets type
+	// inference work on the native precision instead.
+	auto stripDoubleCast = [](Expression *expr) -> Expression * {
+		if (expr->expression_class == ExpressionClass::BOUND_CAST &&
+		    expr->return_type.id() == LogicalTypeId::DOUBLE) {
+			auto &inner = expr->Cast<BoundCastExpression>().child;
+			if (inner->return_type.id() == LogicalTypeId::DECIMAL) {
+				return inner.get();
+			}
+		}
+		return expr;
+	};
+
+	auto leftMLIRValue = stripDoubleCast(left.get())->translateExpression(translationContext, predBuilder, op);
+	auto rightMLIRValue = stripDoubleCast(right.get())->translateExpression(translationContext, predBuilder, op);
 
 	lingodb::compiler::dialect::db::DBCmpPredicate dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::eq;
 	auto comparison_type = GetExpressionType();

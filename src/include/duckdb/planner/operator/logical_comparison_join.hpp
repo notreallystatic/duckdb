@@ -74,6 +74,9 @@ public:
 	                                  vector<unique_ptr<Expression>> &arbitrary_expressions);
 
 	bool HasEquality(idx_t &range_count) const;
+
+	void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&) override;
+	MLIRAttributeInfo& resolveColumnBindingToAttributeInfo(ColumnBinding& binding) override;
 };
 
 } // namespace duckdb

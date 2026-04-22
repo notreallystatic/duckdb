@@ -39,12 +39,15 @@ MLIRAttributeInfo& LogicalDependentJoin::resolveColumnBindingToAttributeInfo(Col
 		return children[0]->resolveColumnBindingToAttributeInfo(binding);
 	}
 
-	// Right-side bindings are mapped through the SingleJoinOp mapping.
-	// Find the index of this binding in the right child's bindings.
+	// Right-side bindings: when using singlejoin, they are mapped through mlirAttributeInfos.
+	// When using deferred scalar (SINGLE join), mlirAttributeInfos is empty — delegate to right child.
 	auto rightBindings = children[1]->GetColumnBindings();
 	for (idx_t i = 0; i < rightBindings.size(); i++) {
 		if (rightBindings[i] == binding) {
-			return mlirAttributeInfos[i];
+			if (i < mlirAttributeInfos.size()) {
+				return mlirAttributeInfos[i];
+			}
+			return children[1]->resolveColumnBindingToAttributeInfo(binding);
 		}
 	}
 	throw std::runtime_error("[LogicalDependentJoin] Could not resolve column binding " + binding.ToString());
@@ -103,89 +106,66 @@ void LogicalDependentJoin::resolveMLIRValue(MLIRTranslationContext& context, MLI
 		return;
 	}
 
-	// SINGLE join (scalar subquery) path — original implementation below.
+	// SINGLE join (scalar subquery): defer the right child's resolution to inside the
+	// outer selection's predicate block. This ensures correlated column refs (e.g. p_partkey)
+	// resolve against the outer tuple context, and that relalg.getscalar is only emitted
+	// inside the predicate block where all its inputs are in scope.
+	children[0]->parentColumnBindings = this->parentColumnBindings;
 	children[0]->resolveMLIRValue(context, scope);
 
-	children[1]->parentColumnBindings = this->parentColumnBindings; // Pass down parent column bindings to the right child
-	children[1]->parentColumnBindings.push_front(children[0].get()); // Add left child to parent column bindings for the right child
-	children[1]->resolveMLIRValue(context, scope);
+	// Set up right child's parent bindings so depth-1 refs resolve against the left side.
+	children[1]->parentColumnBindings = this->parentColumnBindings;
+	children[1]->parentColumnBindings.push_front(children[0].get());
 
-
-	auto leftValue = children[0]->getMLIRValue();
-	auto rightValue = children[1]->getMLIRValue();
-
-	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
-	D_ASSERT(mlirContainerInstance.getContextPtr() != nullptr);
-
-	auto &mlirContext = mlirContainerInstance.getContext();
-	auto &builder = mlirContainerInstance.getBuilder();
-	auto module = mlirContainerInstance.getModuleOp();
-	auto loc = builder.getUnknownLoc();
-
-	tuples::ColumnManager& attrManager =
-		module.getContext()
-		->getLoadedDialect<tuples::TupleStreamDialect>()
-		->getColumnManager();
-
-	// Build the mapping: for each right-side column, create a new ColumnDefAttr
-	// that maps from the original right-side column, with a nullable type.
+	auto* rightChild = children[1].get();
 	auto rightBindings = children[1]->GetColumnBindings();
-	std::vector<mlir::Attribute> mappingAttrs;
-	mlirAttributeInfos.clear();
 
-	static int singleJoinCounter = 0;
+	for (idx_t bi = 0; bi < rightBindings.size(); bi++) {
+		auto binding = rightBindings[bi];
+		std::cout << "[LogicalDependentJoin](resolveMLIRValue) :: SINGLE join: registering deferred scalar callback for binding "
+		          << binding.ToString() << std::endl;
 
-	for (idx_t i = 0; i < rightBindings.size(); i++) {
-		auto& rightAttrInfo = children[1]->resolveColumnBindingToAttributeInfo(rightBindings[i]);
-		auto* rightColumn = rightAttrInfo.column;
+		context.deferredScalarCallbacks[binding] = [rightChild, bi, &context, &scope](mlir::OpBuilder& predBuilder) -> mlir::Value {
+			auto& mlirContainer = lingodb::execution::MLIRContainer::getInstance();
+			auto& globalBuilder = mlirContainer.getBuilder();
 
-		std::string scopeName = "singlejoin_" + std::to_string(singleJoinCounter++);
-		std::string attrName = rightAttrInfo.col_name;
+			// Redirect the global builder into the predicate block so that all ops
+			// created by resolveMLIRValue (basetable, selection, agg, map) land inside it.
+			auto savedPoint = globalBuilder.saveInsertionPoint();
+			globalBuilder.setInsertionPoint(predBuilder.getBlock(), predBuilder.getInsertionPoint());
 
-		// Create fromExisting reference to the original right-side column
-		auto fromExisting = builder.getArrayAttr({attrManager.createRef(rightColumn)});
+			rightChild->resolveMLIRValue(context, scope);
+			auto subqueryStream = rightChild->getMLIRValue();
 
-		// Create new column def
-		auto newDef = attrManager.createDef(scopeName, attrName, fromExisting);
+			auto innerBindings = rightChild->GetColumnBindings();
+			auto& rightAttrInfo = rightChild->resolveColumnBindingToAttributeInfo(innerBindings[bi]);
+			auto* rightColumn = rightAttrInfo.column;
 
-		// Make the type nullable (SingleJoin may produce NULL if right side has 0 rows)
-		auto originalType = rightColumn->type;
-		if (!mlir::isa<db::NullableType>(originalType)) {
-			newDef.getColumn().type = db::NullableType::get(&mlirContext, originalType);
-		} else {
-			newDef.getColumn().type = originalType;
-		}
+			auto moduleOp = mlirContainer.getModuleOp();
+			lingodb::compiler::dialect::tuples::ColumnManager& attrManager =
+			    moduleOp->getContext()
+			        ->getLoadedDialect<lingodb::compiler::dialect::tuples::TupleStreamDialect>()
+			        ->getColumnManager();
 
-		mappingAttrs.push_back(newDef);
+			mlir::Type resType = rightColumn->type;
+			if (!mlir::isa<lingodb::compiler::dialect::db::NullableType>(resType)) {
+				resType = lingodb::compiler::dialect::db::NullableType::get(predBuilder.getContext(), resType);
+			}
 
-		// Register the mapped column in the translation context
-		context.mapAttribute(scope, attrName, &newDef.getColumn());
-		context.mapAttribute(scope, scopeName + "." + attrName, &newDef.getColumn());
+			auto getScalar = globalBuilder.create<lingodb::compiler::dialect::relalg::GetScalarOp>(
+			    globalBuilder.getUnknownLoc(),
+			    resType,
+			    attrManager.createRef(rightColumn),
+			    subqueryStream);
 
-		// Store in mlirAttributeInfos for resolveColumnBindingToAttributeInfo
-		mlirAttributeInfos.push_back(MLIRAttributeInfo{scopeName, attrName, &newDef.getColumn()});
-
-		std::cout << "[LogicalDependentJoin](resolveMLIRValue) :: Mapped right column "
-			<< rightAttrInfo.table_name << "." << rightAttrInfo.col_name
-			<< " -> " << scopeName << "." << attrName << std::endl;
+			globalBuilder.restoreInsertionPoint(savedPoint);
+			return getScalar.getResult();
+		};
 	}
 
-	auto mapping = builder.getArrayAttr(mappingAttrs);
-
-	// Create the SingleJoinOp
-	auto singleJoin = builder.create<relalg::SingleJoinOp>(
-		loc,
-		tuples::TupleStreamType::get(&mlirContext),
-		leftValue,
-		rightValue,
-		mapping);
-
-	// Initialize an empty (always-true) predicate
-	singleJoin.initPredicate();
-
-	this->mlirValue = singleJoin.getResult();
-	std::cout << "[LogicalDependentJoin](resolveMLIRValue) :: Created SingleJoinOp with "
-		<< rightBindings.size() << " mapped column(s)" << std::endl;
+	this->mlirValue = children[0]->getMLIRValue();
+	std::cout << "[LogicalDependentJoin](resolveMLIRValue) :: SINGLE join: registered "
+	          << rightBindings.size() << " deferred scalar callback(s)" << std::endl;
 }
 
 } // namespace duckdb

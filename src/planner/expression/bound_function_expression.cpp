@@ -104,8 +104,21 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 	}
 	else if (function.name == "*") {
 		if (children.size() == 2) {
-			auto leftVal = children[0]->translateExpression(translationContext, builder, op);
-			auto rightVal = children[1]->translateExpression(translationContext, builder, op);
+			// Strip CAST(x AS DOUBLE) wrappers to keep native decimal precision.
+			// Without this, decimal<2,1> * decimal<34,21> goes through decimal<38,19>
+			// which inflates the product scale to 40 and produces a wrong result type.
+			auto stripDoubleCast = [](Expression *expr) -> Expression * {
+				if (expr->expression_class == ExpressionClass::BOUND_CAST &&
+				    expr->return_type.id() == LogicalTypeId::DOUBLE) {
+					auto &inner = expr->Cast<BoundCastExpression>().child;
+					if (inner->return_type.id() == LogicalTypeId::DECIMAL) {
+						return inner.get();
+					}
+				}
+				return expr;
+			};
+			auto leftVal = stripDoubleCast(children[0].get())->translateExpression(translationContext, builder, op);
+			auto rightVal = stripDoubleCast(children[1].get())->translateExpression(translationContext, builder, op);
 			return builder.create<lingodb::compiler::dialect::db::MulOp>(loc, leftVal, rightVal);
 		}
 	}
