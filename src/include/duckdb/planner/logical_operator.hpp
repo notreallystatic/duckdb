@@ -78,6 +78,10 @@ public:
 
 	bool hasMLIRResolutionSkipped = false;
 	MLIRAttributeInfo* defaultMLIRAttributeInfo = nullptr;
+	// For cross-product scalar subqueries: the child node (e.g. inner PROJECTION/AGGREGATE)
+	// that should be resolved lazily inside the predicate block via deferredScalarCallbacks.
+	// Set by LogicalProjection when it detects a CASE-wrapper and skips eager resolution.
+	LogicalOperator* pendingScalarSubqueryChild = nullptr;
 	std::deque<LogicalOperator*> parentColumnBindings;
 
 public:

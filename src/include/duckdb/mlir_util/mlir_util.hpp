@@ -109,6 +109,19 @@ public:
 	                   std::function<mlir::Value(mlir::OpBuilder &)>,
 	                   ColumnBindingHash, ColumnBindingEqual>
 	    deferredScalarCallbacks;
+
+	// CTE body storage: maps cte_index → resolved body info.
+	// LogicalMaterializedCTE populates this after resolving the CTE definition.
+	// LogicalCTERef reads it to emit relalg.renaming.
+	struct CTEBodyInfo {
+		mlir::Value bodyValue;
+		// Raw column pointers for each CTE output column (in binding order).
+		// Using Column* avoids a forward-declaration dependency on MLIRAttributeInfo.
+		std::vector<const lingodb::compiler::dialect::tuples::Column*> columns;
+		std::string cteName;
+		int useCount = 0; // incremented each time a CTE_REF for this CTE is resolved
+	};
+	std::unordered_map<idx_t, CTEBodyInfo> cteValues;
 };
 struct DefineScope {
 public:

@@ -305,6 +305,10 @@ void LogicalOperator::setMaterializeInput(mlir::Value value) {
 }
 
 void LogicalOperator::materializeMLIRValue(MLIRTranslationContext &translationContext, MLIRTranslationContext::ResolverScope &scope) {
+	if (this->type == LogicalOperatorType::LOGICAL_MATERIALIZED_CTE) {
+		// CTE's children[0] is the body definition; children[1] is the consumer (main query).
+		return this->children[1]->materializeMLIRValue(translationContext, scope);
+	}
 	if (this->type != LogicalOperatorType::LOGICAL_PROJECTION) {
 		return this->children[0]->materializeMLIRValue(translationContext, scope);
 	}

@@ -47,6 +47,9 @@ public:
 	vector<ColumnBinding> GetColumnBindings() override {
 		return GenerateColumnBindings(table_index, chunk_types.size());
 	}
+
+	void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&) override;
+	MLIRAttributeInfo& resolveColumnBindingToAttributeInfo(ColumnBinding& binding) override;
 	void Serialize(Serializer &serializer) const override;
 	static unique_ptr<LogicalOperator> Deserialize(Deserializer &deserializer);
 	vector<idx_t> GetTableIndex() const override;

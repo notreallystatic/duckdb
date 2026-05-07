@@ -36,6 +36,9 @@ public:
 		return children[1]->GetColumnBindings();
 	}
 
+	void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&) override;
+	MLIRAttributeInfo& resolveColumnBindingToAttributeInfo(ColumnBinding& binding) override;
+
 	void Serialize(Serializer &serializer) const override;
 	static unique_ptr<LogicalOperator> Deserialize(Deserializer &deserializer);
 
