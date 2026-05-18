@@ -71,24 +71,23 @@ vector<ColumnBinding> LogicalFilter::GetColumnBindings() {
 // These are the predicates that are safe to push down because all of them MUST
 // be true
 bool LogicalFilter::SplitPredicates(vector<unique_ptr<Expression>> &expressions) {
-	return false;
-	// bool found_conjunction = false;
-	// for (idx_t i = 0; i < expressions.size(); i++) {
-	// 	if (expressions[i]->GetExpressionType() == ExpressionType::CONJUNCTION_AND) {
-	// 		auto &conjunction = expressions[i]->Cast<BoundConjunctionExpression>();
-	// 		found_conjunction = true;
-	// 		// AND expression, append the other children
-	// 		for (idx_t k = 1; k < conjunction.children.size(); k++) {
-	// 			expressions.push_back(std::move(conjunction.children[k]));
-	// 		}
-	// 		// replace this expression with the first child of the conjunction
-	// 		expressions[i] = std::move(conjunction.children[0]);
-	// 		// we move back by one so the right child is checked again
-	// 		// in case it is an AND expression as well
-	// 		i--;
-	// 	}
-	// }
-	// return LogicalFilter::found_conjunction_and = found_conjunction;
+	bool found_conjunction = false;
+	for (idx_t i = 0; i < expressions.size(); i++) {
+		if (expressions[i]->GetExpressionType() == ExpressionType::CONJUNCTION_AND) {
+			auto &conjunction = expressions[i]->Cast<BoundConjunctionExpression>();
+			found_conjunction = true;
+			// AND expression, append the other children
+			for (idx_t k = 1; k < conjunction.children.size(); k++) {
+				expressions.push_back(std::move(conjunction.children[k]));
+			}
+			// replace this expression with the first child of the conjunction
+			expressions[i] = std::move(conjunction.children[0]);
+			// we move back by one so the right child is checked again
+			// in case it is an AND expression as well
+			i--;
+		}
+	}
+	return LogicalFilter::found_conjunction_and = found_conjunction;
 }
 
 /**
@@ -141,8 +140,18 @@ void LogicalFilter::resolveMLIRValue(MLIRTranslationContext &translationContext,
 	translationContext.setCurrentTuple(predBlock->getArgument(0));
 	predBuilder.setInsertionPointToStart(predBlock);
 
-	// Add the expression and return it as a result.
-	mlir::Value resultExpr = expressions[0]->translateExpression(translationContext, predBuilder, this);
+	// Add the expression(s) and return as a result. SplitPredicates may have produced multiple
+	// individual predicates from a compound AND — recombine them for the MLIR selection region.
+	mlir::Value resultExpr;
+	if (expressions.size() == 1) {
+		resultExpr = expressions[0]->translateExpression(translationContext, predBuilder, this);
+	} else {
+		std::vector<mlir::Value> exprVals;
+		for (auto &expr : expressions) {
+			exprVals.push_back(expr->translateExpression(translationContext, predBuilder, this));
+		}
+		resultExpr = predBuilder.create<lingodb::compiler::dialect::db::AndOp>(loc, exprVals);
+	}
 	predBuilder.create<lingodb::compiler::dialect::tuples::ReturnOp>(loc, resultExpr);
 	auto selectionOp = builder.create<lingodb::compiler::dialect::relalg::SelectionOp>(
 		loc,
