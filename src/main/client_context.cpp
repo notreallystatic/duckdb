@@ -384,11 +384,11 @@ static bool IsExplainAnalyze(SQLStatement *statement) {
 }
 
 void ClientContext::compileQuery(LogicalOperator* logical_plan) {
-	// try {
-	// 	logical_plan->Walk(0);
-	// } catch (std::exception &ex) {
-	// 	std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
-	// }
+	try {
+		logical_plan->Walk(0);
+	} catch (std::exception &ex) {
+		std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
+	}
 
 
 	try {

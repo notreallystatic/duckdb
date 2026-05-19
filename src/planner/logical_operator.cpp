@@ -279,7 +279,7 @@ unique_ptr<LogicalOperator> LogicalOperator::Copy(ClientContext &context) const 
 }
 
 void LogicalOperator::resolveMLIRValue(MLIRTranslationContext &translationContext, MLIRTranslationContext::ResolverScope &scope) {
-	std::cout << "[LogicalOperator](resolveMLIRValue) :: " << LogicalOperatorToString(type) << std::endl;
+	// std::cout << "[LogicalOperator](resolveMLIRValue) :: " << LogicalOperatorToString(type) << std::endl;
 	for (const auto &child : children) {
 		child->resolveMLIRValue(translationContext, scope);
 	}
@@ -312,7 +312,7 @@ void LogicalOperator::materializeMLIRValue(MLIRTranslationContext &translationCo
 	if (this->type != LogicalOperatorType::LOGICAL_PROJECTION) {
 		return this->children[0]->materializeMLIRValue(translationContext, scope);
 	}
-	std::cout << "[LogicalOperator](materializeMLIRValue) :: " << LogicalOperatorToString(type) << std::endl;
+	// std::cout << "[LogicalOperator](materializeMLIRValue) :: " << LogicalOperatorToString(type) << std::endl;
 	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 	auto &builder = mlirContainerInstance.getBuilder();
 	auto &context = mlirContainerInstance.getContext();
@@ -333,18 +333,17 @@ void LogicalOperator::materializeMLIRValue(MLIRTranslationContext &translationCo
 	std::vector<mlir::Attribute> attrs;
 
 	auto columnBindings = this->GetColumnBindings();
-	std::cout << "[LogicalProjection](materializeMLIRValue) :: Column Bindings for projection: " << ColumnBindingsToString(columnBindings) << std::endl;
+	// std::cout << "[LogicalProjection](materializeMLIRValue) :: Column Bindings for projection: " << ColumnBindingsToString(columnBindings) << std::endl;
 	int exprIndex = 0;
 	for (auto& binding : columnBindings) {
 		auto& mlirAttrInfo = this->resolveColumnBindingToAttributeInfo(binding);
 		string columnNameWithTable = mlirAttrInfo.table_name; // table_name.column_name
 		string columnName = mlirAttrInfo.col_name;
 		auto columnAttr = mlirAttrInfo.column;
-		std::cout << "[LogicalProjection](materializeMLIRValue) :: Resolving column binding for " << binding.ToString()
-			<< " -> " << columnNameWithTable << std::endl;
-		auto expr = this->expressions[exprIndex].get();
-		string exprName = expr->GetName();
-		std::cout << "[LogicalProjection](materializeMLIRValue) :: Expression for column " << columnNameWithTable << " is " << exprName << std::endl;
+		// std::cout << "[LogicalProjection](materializeMLIRValue) :: Resolving column binding for " << binding.ToString()
+		// 	<< " -> " << columnNameWithTable << std::endl;
+		string exprName = mlirContainerInstance.names[exprIndex];
+		// std::cout << "[LogicalProjection](materializeMLIRValue) :: Expression for column " << columnNameWithTable << " is " << exprName << std::endl;
 		names.push_back(builder.getStringAttr(exprName));
 		members.push_back(memberManager.createMember(columnName, columnAttr->type));
 		attrs.push_back(attrManager.createRef(columnAttr));
@@ -358,9 +357,9 @@ void LogicalOperator::materializeMLIRValue(MLIRTranslationContext &translationCo
 	);
 
 	mlir::Value childValue = LogicalOperator::materializeInput;
-	std::cout << "[LogicalProjection](materializeMLIRValue) :: Child MLIR Value before materialization: " << std::endl;
-	childValue.print(llvm::outs());
-	std::cout << std::endl;
+	// std::cout << "[LogicalProjection](materializeMLIRValue) :: Child MLIR Value before materialization: " << std::endl;
+	// childValue.print(llvm::outs());
+	// std::cout << std::endl;
 	mlir::Value result = builder.create<relalg::MaterializeOp>(
 		loc,
 		localTableType,

@@ -99,6 +99,8 @@ void Planner::CreatePlan(SQLStatement &statement) {
 		value_map[identifier] = param;
 	}
 
+	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
+	mlirContainerInstance.names = this->names;
 	// Mode 1: compile the unoptimized plan here, before the optimizer gets a chance to modify it.
 	if (compile_queries == 1 && plan && statement.type == StatementType::SELECT_STATEMENT) {
 		context.compileQuery(plan.get());
