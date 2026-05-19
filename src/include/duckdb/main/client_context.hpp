@@ -87,8 +87,8 @@ public:
 	unique_ptr<ClientData> client_data;
 	//! Data for the currently running transaction
 	TransactionContext transaction;
-	//! Whether to compile queries
-	bool compile_queries = false;
+	//! Compilation mode: 0=none, 1=unoptimized plan, 2=optimized plan
+	int compile_queries = 0;
 
 public:
 	MetaTransaction &ActiveTransaction() {

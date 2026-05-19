@@ -252,7 +252,55 @@ void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, ML
 		return;
 	}
 
-	throw NotImplementedException("[LogicalComparisonJoin] Only LEFT and MARK join types are supported in MLIR codegen, got: " + JoinTypeToString(join_type));
+	if (join_type == JoinType::INNER) {
+		children[0]->parentColumnBindings = this->parentColumnBindings;
+		children[1]->parentColumnBindings = this->parentColumnBindings;
+		children[0]->resolveMLIRValue(context, scope);
+		children[1]->resolveMLIRValue(context, scope);
+
+		auto leftValue  = children[0]->getMLIRValue();
+		auto rightValue = children[1]->getMLIRValue();
+
+		auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
+		auto &mlirContext = mlirContainerInstance.getContext();
+		auto &builder     = mlirContainerInstance.getBuilder();
+		auto  loc         = builder.getUnknownLoc();
+
+		auto *predBlock = new mlir::Block();
+		mlir::OpBuilder predBuilder(builder.getContext());
+		predBlock->addArgument(tuples::TupleType::get(builder.getContext()), loc);
+		{
+			auto tupleScope = context.createTupleScope();
+			context.setCurrentTuple(predBlock->getArgument(0));
+			predBuilder.setInsertionPointToStart(predBlock);
+
+			std::vector<mlir::Value> condVals;
+			for (auto &cond : conditions) {
+				auto condExpr = make_uniq<BoundComparisonExpression>(
+				    cond.comparison, cond.left->Copy(), cond.right->Copy());
+				condVals.push_back(condExpr->translateExpression(context, predBuilder, this));
+			}
+			if (predicate) {
+				condVals.push_back(predicate->translateExpression(context, predBuilder, this));
+			}
+
+			mlir::Value condVal = condVals.size() == 1
+			    ? condVals[0]
+			    : predBuilder.create<db::AndOp>(loc, condVals).getResult();
+			predBuilder.create<tuples::ReturnOp>(loc, condVal);
+		}
+
+		auto innerJoin = builder.create<relalg::InnerJoinOp>(
+		    loc, tuples::TupleStreamType::get(&mlirContext), leftValue, rightValue);
+		innerJoin.getPredicate().push_back(predBlock);
+
+		this->mlirValue = innerJoin.getResult();
+		std::cout << "[LogicalComparisonJoin] Created InnerJoinOp (INNER) with "
+		          << conditions.size() << " condition(s)" << std::endl;
+		return;
+	}
+
+	throw NotImplementedException("[LogicalComparisonJoin] Unsupported join type in MLIR codegen: " + JoinTypeToString(join_type));
 }
 
 } // namespace duckdb

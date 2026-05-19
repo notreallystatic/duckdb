@@ -20,6 +20,11 @@ mlir::Value BoundConstantExpression::translateExpression(MLIRTranslationContext&
 			loc, builder.getI32Type(), builder.getI32IntegerAttr(value.GetValue<int32_t>()));
 		break;
 	}
+	case LogicalTypeId::BIGINT: {
+		return builder.create<lingodb::compiler::dialect::db::ConstantOp>(
+			loc, builder.getI64Type(), builder.getI64IntegerAttr(value.GetValue<int64_t>()));
+		break;
+	}
 	case LogicalTypeId::VARCHAR: {
 		auto strVal = value.GetValue<string>();
 		// Match LingoDB's own SQL frontend (see lingodb_ext Parser.cpp T_String case):

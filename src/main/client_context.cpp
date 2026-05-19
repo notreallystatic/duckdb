@@ -58,7 +58,7 @@
 #include <iostream>
 namespace duckdb {
 
-bool *COMPILE_QUERIES = nullptr;
+int *COMPILE_QUERIES = nullptr;
 
 struct ActiveQueryContext {
 public:
@@ -168,10 +168,10 @@ void ClientContext::readCompileConfig() {
 		this->compile_queries = *COMPILE_QUERIES;
 		return;
 	}
-	std::cout << "Should compile queries: 0(no), 1(yes)" << std::endl;
+	std::cout << "Compilation mode: 0(none), 1(unoptimized plan), 2(optimized plan)" << std::endl;
 	std::cin >> this->compile_queries;
-	COMPILE_QUERIES = new bool(this->compile_queries);
-	std::cout << "Compile queries set to: " << this->compile_queries << std::endl;
+	COMPILE_QUERIES = new int(this->compile_queries);
+	std::cout << "Compilation mode set to: " << this->compile_queries << std::endl;
 }
 
 ClientContext::~ClientContext() {
@@ -384,11 +384,11 @@ static bool IsExplainAnalyze(SQLStatement *statement) {
 }
 
 void ClientContext::compileQuery(LogicalOperator* logical_plan) {
-	try {
-		logical_plan->Walk(0);
-	} catch (std::exception &ex) {
-		std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
-	}
+	// try {
+	// 	logical_plan->Walk(0);
+	// } catch (std::exception &ex) {
+	// 	std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
+	// }
 
 
 	try {
@@ -446,7 +446,7 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 	auto &profiler = QueryProfiler::Get(*this);
 	profiler.StartQuery(query, IsExplainAnalyze(statement.get()), true);
 	profiler.StartPhase(MetricsType::PLANNER);
-	Planner logical_planner(*this, COMPILE_QUERIES ? *COMPILE_QUERIES : false);
+	Planner logical_planner(*this, COMPILE_QUERIES ? *COMPILE_QUERIES : 0);
 	if (values) {
 		auto &parameter_values = *values;
 		for (auto &value : parameter_values) {
@@ -469,11 +469,20 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 		return result;
 	}
 
+	// Mode 1: compilation was done inside CreatePlan on the unoptimized plan — skip the optimizer.
+	if (compile_queries == 1 && statement_type == StatementType::SELECT_STATEMENT) {
+		profiler.StartPhase(MetricsType::COMPILE_AND_RUN_QUERIES);
+		std::cout << "[ClientContext] (CreatePreparedStatementInternal) running compiled unoptimized plan\n";
+		profiler.EndPhase();
+		runMLIR();
+		result->is_compiled_query = true;
+		return result;
+	}
+
 #ifdef DEBUG
 	logical_plan->Verify(*this);
 #endif
 	if (config.enable_optimizer && logical_plan->RequireOptimizer()) {
-		std::cout << "Optimizing the logical plan now :: \n";
 		profiler.StartPhase(MetricsType::ALL_OPTIMIZERS);
 		Optimizer optimizer(*logical_planner.binder, *this);
 		logical_plan = optimizer.Optimize(std::move(logical_plan));
@@ -484,10 +493,12 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 		logical_plan->Verify(*this);
 #endif
 	}
-	if (compile_queries) {
-		profiler.StartPhase(MetricsType::COMPILE_AND_RUN_QUERIES);
-		std::cout << "[ClientContext] (CreatePreparedStatementInternal) running the compiled plan :: \n";
 
+	// Mode 2: compile the optimized plan.
+	if (compile_queries == 2) {
+		compileQuery(logical_plan.get());
+		profiler.StartPhase(MetricsType::COMPILE_AND_RUN_QUERIES);
+		std::cout << "[ClientContext] (CreatePreparedStatementInternal) running compiled optimized plan\n";
 		profiler.EndPhase();
 		if (statement_type == StatementType::SELECT_STATEMENT) {
 			runMLIR();

@@ -31,6 +31,10 @@
 
 #include "lingodb/execution/Frontend.h"
 #include "duckdb/planner/expression.hpp"
+#include "duckdb/planner/expression/bound_columnref_expression.hpp"
+#include "duckdb/planner/filter/constant_filter.hpp"
+#include "duckdb/planner/filter/conjunction_filter.hpp"
+#include "duckdb/planner/filter/null_filter.hpp"
 
 namespace duckdb {
 
@@ -582,13 +586,71 @@ void LogicalGet::resolveMLIRValue(MLIRTranslationContext &translationContext, ML
 
 
 
-	this->mlirValue = builder.create<lingodb::compiler::dialect::relalg::BaseTableOp>(
+	auto baseTableOp = builder.create<lingodb::compiler::dialect::relalg::BaseTableOp>(
 	    builder.getUnknownLoc(),
 	    lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext()), source_table_name,
 	    builder.getDictionaryAttr(columns));
 
-	// Print the mlie value so far
 	std::cout << "[LogicalGet](resolveMLIRValue) BaseTableOp MLIR Value :: ";
+	std::cout.flush();
+	baseTableOp.getResult().print(llvm::outs());
+	std::cout << std::endl;
+
+	if (table_filters.filters.empty()) {
+		this->mlirValue = baseTableOp.getResult();
+		return;
+	}
+
+	// Wrap the base table in a SelectionOp that applies all pushed-down table filters.
+	auto loc = builder.getUnknownLoc();
+	auto *predBlock = new mlir::Block();
+	mlir::OpBuilder predBuilder(builder.getContext());
+	predBlock->addArgument(lingodb::compiler::dialect::tuples::TupleType::get(builder.getContext()), loc);
+	auto tupleScope = translationContext.createTupleScope();
+	translationContext.setCurrentTuple(predBlock->getArgument(0));
+	predBuilder.setInsertionPointToStart(predBlock);
+
+	// Build a predicate expression for each filter column and AND them all together.
+	auto &col_ids = GetColumnIds();
+	std::vector<mlir::Value> filterExprs;
+	for (auto &[filter_col_idx, filter] : table_filters.filters) {
+		// Map the catalog column index to the projected binding column index.
+		idx_t binding_col_idx = DConstants::INVALID_INDEX;
+		for (idx_t i = 0; i < col_ids.size(); i++) {
+			if (!col_ids[i].IsVirtualColumn() && col_ids[i].GetPrimaryIndex() == filter_col_idx) {
+				binding_col_idx = i;
+				break;
+			}
+		}
+		if (binding_col_idx == DConstants::INVALID_INDEX) {
+			throw std::runtime_error("[LogicalGet] Table filter references column " +
+			                         std::to_string(filter_col_idx) + " not found in projected column ids");
+		}
+		auto colExpr = make_uniq<BoundColumnRefExpression>(
+		    names[filter_col_idx], returned_types[filter_col_idx],
+		    ColumnBinding(table_index, binding_col_idx));
+		auto filterExpr = filter->ToExpression(*colExpr);
+		std::cout << "[LogicalGet](resolveMLIRValue) Table filter expr :: " << filterExpr->ToString() << std::endl;
+		filterExprs.push_back(filterExpr->translateExpression(translationContext, predBuilder, this));
+	}
+
+	mlir::Value predResult;
+	if (filterExprs.size() == 1) {
+		predResult = filterExprs[0];
+	} else {
+		predResult = predBuilder.create<lingodb::compiler::dialect::db::AndOp>(loc, filterExprs);
+	}
+	predBuilder.create<lingodb::compiler::dialect::tuples::ReturnOp>(loc, predResult);
+
+	auto selectionOp = builder.create<lingodb::compiler::dialect::relalg::SelectionOp>(
+	    loc,
+	    lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext()),
+	    baseTableOp.getResult());
+	selectionOp.getPredicate().push_back(predBlock);
+
+	this->mlirValue = selectionOp.getResult();
+
+	std::cout << "[LogicalGet](resolveMLIRValue) SelectionOp (with table filters) MLIR Value :: ";
 	std::cout.flush();
 	this->mlirValue.print(llvm::outs());
 	std::cout << std::endl;
