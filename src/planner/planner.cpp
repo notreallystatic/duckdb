@@ -48,8 +48,14 @@ void Planner::CreatePlan(SQLStatement &statement) {
 		this->names = bound_statement.names;
 		this->types = bound_statement.types;
 		this->plan = std::move(bound_statement.plan);
+		auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
+		mlirContainerInstance.names = this->names;
 		auto max_tree_depth = ClientConfig::GetConfig(context).max_expression_depth;
 		CheckTreeDepth(*plan, max_tree_depth);
+		// Mode 1: compile the unoptimized plan here, before the optimizer gets a chance to modify it.
+		if (compile_queries == 1 && plan && statement.type == StatementType::SELECT_STATEMENT) {
+			context.compileQuery(plan.get());
+		}
 
 		this->plan = FlattenDependentJoins::DecorrelateIndependent(*binder, std::move(this->plan));
 	} catch (const std::exception &ex) {
@@ -99,12 +105,8 @@ void Planner::CreatePlan(SQLStatement &statement) {
 		value_map[identifier] = param;
 	}
 
-	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
-	mlirContainerInstance.names = this->names;
-	// Mode 1: compile the unoptimized plan here, before the optimizer gets a chance to modify it.
-	if (compile_queries == 1 && plan && statement.type == StatementType::SELECT_STATEMENT) {
-		context.compileQuery(plan.get());
-	}
+
+
 }
 
 shared_ptr<PreparedStatementData> Planner::PrepareSQLStatement(unique_ptr<SQLStatement> statement) {
