@@ -22,7 +22,7 @@ public:
 public:
 	LogicalTopN(vector<BoundOrderByNode> orders, idx_t limit, idx_t offset);
 	~LogicalTopN() override;
-
+	void resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&) override;
 	vector<BoundOrderByNode> orders;
 	//! The maximum amount of elements to emit
 	idx_t limit;
