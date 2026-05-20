@@ -180,7 +180,7 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 		auto posVal = children[1]->translateExpression(translationContext, builder, op);
 		auto lenVal = children[2]->translateExpression(translationContext, builder, op);
 		return builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, strVal.getType(), "Substring", mlir::ValueRange({ strVal, posVal, lenVal })).getRes();
-	} else if (function.name.starts_with("__internal_decompress_string") || function.name.starts_with("__internal_compress_string") || function.name.starts_with("__internal_compress_integral")) {
+	} else if (function.name.starts_with("__internal_decompress") || function.name.starts_with("__internal_compress")) {
 		auto baseCol = children[0]->translateExpression(translationContext, builder, op);
 		return baseCol;
 	}
