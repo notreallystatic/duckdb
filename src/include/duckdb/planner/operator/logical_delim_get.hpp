@@ -39,6 +39,8 @@ public:
 	vector<idx_t> GetTableIndex() const override;
 	string GetName() const override;
 
+	MLIRAttributeInfo& resolveColumnBindingToAttributeInfo(ColumnBinding& binding) override;
+
 protected:
 	void ResolveTypes() override {
 		// types are resolved in the constructor

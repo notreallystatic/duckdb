@@ -1,5 +1,7 @@
 #include "duckdb/planner/operator/logical_comparison_join.hpp"
+#include "duckdb/planner/operator/logical_delim_get.hpp"
 #include "duckdb/planner/expression/bound_comparison_expression.hpp"
+#include "duckdb/planner/expression/bound_columnref_expression.hpp"
 #include "duckdb/common/enum_util.hpp"
 
 #include "lingodb/execution/Frontend.h"
@@ -8,6 +10,7 @@
 #include "lingodb/compiler/Dialect/RelAlg/IR/RelAlgOps.h"
 #include "lingodb/compiler/Dialect/DB/IR/DBOps.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 
 namespace relalg = lingodb::compiler::dialect::relalg;
 namespace tuples = lingodb::compiler::dialect::tuples;
@@ -89,10 +92,149 @@ MLIRAttributeInfo& LogicalComparisonJoin::resolveColumnBindingToAttributeInfo(Co
 	return children[1]->resolveColumnBindingToAttributeInfo(binding);
 }
 
+// ── DELIM_JOIN helpers ────────────────────────────────────────────────────────
+
+// Recursively locate the LogicalDelimGet leaf in a subtree.
+static LogicalDelimGet* findDelimGet(LogicalOperator* node) {
+	if (node->type == LogicalOperatorType::LOGICAL_DELIM_GET)
+		return &node->Cast<LogicalDelimGet>();
+	for (auto& child : node->children) {
+		if (auto* r = findDelimGet(child.get()))
+			return r;
+	}
+	return nullptr;
+}
+
+static bool subtreeContainsDelimGet(LogicalOperator* node) {
+	return findDelimGet(node) != nullptr;
+}
+
+// Walk the left subtree of a DELIM_JOIN, skipping the DELIM_GET placeholder
+// and any narrowing PROJECTION nodes added by DuckDB. Returns the MLIR value
+// for the real inner relation and a pointer to the inner COMPARISON_JOIN node
+// (used as 'op' in translateExpression so its resolveColumnBindingToAttributeInfo
+// can find both lineitem columns and the pre-populated DELIM_GET attrs).
+struct DelimInnerInfo {
+	mlir::Value innerValue;
+	LogicalOperator* innerJoinOp; // the inner COMPARISON_JOIN node
+};
+
+static DelimInnerInfo extractDelimInnerPipeline(
+    LogicalOperator* node,
+    const std::deque<LogicalOperator*>& parentBindings,
+    MLIRTranslationContext& ctx,
+    MLIRTranslationContext::ResolverScope& scope)
+{
+	node->parentColumnBindings = parentBindings;
+
+	switch (node->type) {
+	case LogicalOperatorType::LOGICAL_PROJECTION:
+		// Skip: DuckDB adds this only to narrow columns for its hash table.
+		return extractDelimInnerPipeline(node->children[0].get(), parentBindings, ctx, scope);
+
+	case LogicalOperatorType::LOGICAL_COMPARISON_JOIN: {
+		// One child leads to DELIM_GET (outer key feed), the other is the real inner table.
+		bool leftIsDelim = subtreeContainsDelimGet(node->children[0].get());
+		auto* innerChild = leftIsDelim ? node->children[1].get() : node->children[0].get();
+
+		innerChild->parentColumnBindings = parentBindings;
+		innerChild->resolveMLIRValue(ctx, scope);
+
+		return {innerChild->getMLIRValue(), node};
+	}
+
+	default:
+		// Unexpected node between DELIM_JOIN and COMPARISON_JOIN — resolve normally.
+		node->resolveMLIRValue(ctx, scope);
+		return {node->getMLIRValue(), node};
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 static int compJoinOuterCounter = 0;
 
 void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, MLIRTranslationContext::ResolverScope& scope) {
-	std::cout << "[LogicalComparisonJoin](resolveMLIRValue) :: join_type=" << JoinTypeToString(join_type) << std::endl;
+	// ── DELIM_JOIN (correlated subquery decorrelated by the optimizer) ────────
+	if (this->type == LogicalOperatorType::LOGICAL_DELIM_JOIN) {
+		// Step 1: resolve the outer relation (right child, e.g. orders + date filter).
+		children[1]->parentColumnBindings = this->parentColumnBindings;
+		children[1]->resolveMLIRValue(context, scope);
+		auto outerValue = children[1]->getMLIRValue();
+
+		// Step 2: pre-populate DELIM_GET's mlirAttributeInfos so that the join
+		// condition expressions inside the inner COMPARISON_JOIN can resolve
+		// DELIM_GET column bindings to the outer relation's already-resolved attrs.
+		auto* delimGet = findDelimGet(children[0].get());
+		D_ASSERT(delimGet != nullptr && "DELIM_JOIN left child must contain a DELIM_GET");
+		delimGet->mlirAttributeInfos.clear();
+		for (idx_t i = 0; i < duplicate_eliminated_columns.size(); i++) {
+			auto& elimExpr = duplicate_eliminated_columns[i];
+			auto& bcre = elimExpr->Cast<BoundColumnRefExpression>();
+			auto binding = bcre.binding;
+			auto& attrInfo = children[1]->resolveColumnBindingToAttributeInfo(binding);
+			delimGet->mlirAttributeInfos.push_back(attrInfo);
+		}
+
+		// Step 3: walk the left child, skipping DELIM_GET and narrowing projections,
+		// and extract the real inner relation + a pointer to the inner COMPARISON_JOIN.
+		auto innerInfo    = extractDelimInnerPipeline(
+		    children[0].get(), this->parentColumnBindings, context, scope);
+		auto  innerValue  = innerInfo.innerValue;
+		auto* innerJoinOp = innerInfo.innerJoinOp;
+
+		// Conditions live on the inner COMPARISON_JOIN node.
+		auto& joinConditions = innerJoinOp->Cast<LogicalComparisonJoin>().conditions;
+
+		// Step 4: build the semijoin predicate block from the extracted conditions.
+		auto& container = lingodb::execution::MLIRContainer::getInstance();
+		auto& builder   = container.getBuilder();
+		auto& mlirCtx   = container.getContext();
+		auto  loc       = builder.getUnknownLoc();
+
+		auto* predBlock = new mlir::Block();
+		predBlock->addArgument(tuples::TupleType::get(&mlirCtx), loc);
+		{
+			mlir::OpBuilder predBuilder(&mlirCtx);
+			predBuilder.setInsertionPointToStart(predBlock);
+			auto tupleScope = context.createTupleScope();
+			context.setCurrentTuple(predBlock->getArgument(0));
+
+			if (joinConditions.empty()) {
+				// No explicit conditions — predicate is trivially true.
+				auto trueVal = predBuilder.create<mlir::arith::ConstantIntOp>(loc, 1, 1);
+				predBuilder.create<tuples::ReturnOp>(loc, trueVal.getResult());
+			} else {
+				std::vector<mlir::Value> condVals;
+				for (auto& cond : joinConditions) {
+					auto condExpr = make_uniq<BoundComparisonExpression>(
+					    cond.comparison, cond.left->Copy(), cond.right->Copy());
+					condVals.push_back(condExpr->translateExpression(context, predBuilder, innerJoinOp));
+				}
+				mlir::Value combined = condVals.size() == 1
+				    ? condVals[0]
+				    : predBuilder.create<db::AndOp>(loc, condVals).getResult();
+				predBuilder.create<tuples::ReturnOp>(loc, combined);
+			}
+		}
+
+		// Step 5: emit the appropriate relalg join op.
+		if (join_type == JoinType::RIGHT_SEMI) {
+			auto semiJoin = builder.create<relalg::SemiJoinOp>(
+			    loc, tuples::TupleStreamType::get(&mlirCtx), outerValue, innerValue);
+			semiJoin.getPredicate().push_back(predBlock);
+			this->mlirValue = semiJoin.getResult();
+		} else if (join_type == JoinType::RIGHT_ANTI) {
+			auto antiJoin = builder.create<relalg::AntiSemiJoinOp>(
+			    loc, tuples::TupleStreamType::get(&mlirCtx), outerValue, innerValue);
+			antiJoin.getPredicate().push_back(predBlock);
+			this->mlirValue = antiJoin.getResult();
+		} else {
+			throw NotImplementedException(
+			    "[LogicalComparisonJoin] DELIM_JOIN: unsupported join_type: " + JoinTypeToString(join_type));
+		}
+		return;
+	}
 
 	if (join_type == JoinType::LEFT) {
 		// LEFT OUTER JOIN: emit relalg::OuterJoinOp with nullable column mapping.
@@ -172,8 +314,6 @@ void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, ML
 		outerJoin.getPredicate().push_back(predBlock);
 
 		this->mlirValue = outerJoin.getResult();
-		std::cout << "[LogicalComparisonJoin] Created OuterJoinOp (LEFT) with " << rightBindings.size()
-		          << " nullable column(s)" << std::endl;
 		return;
 	}
 
@@ -199,7 +339,6 @@ void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, ML
 				break;
 			}
 		}
-		std::cout << "[LogicalComparisonJoin](resolveMLIRValue) :: MARK join mark binding = " << markBinding.ToString() << std::endl;
 
 		// 4. Register deferred callback: builds the right side + correlated selection inside the predicate block.
 		//    BoundColumnRefExpression will intercept the mark binding and invoke this to emit relalg.exists.
@@ -248,7 +387,6 @@ void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, ML
 		};
 
 		this->mlirValue = children[0]->getMLIRValue();
-		std::cout << "[LogicalComparisonJoin](resolveMLIRValue) :: MARK join: deferred relalg.exists registered" << std::endl;
 		return;
 	}
 
@@ -295,8 +433,6 @@ void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, ML
 		innerJoin.getPredicate().push_back(predBlock);
 
 		this->mlirValue = innerJoin.getResult();
-		std::cout << "[LogicalComparisonJoin] Created InnerJoinOp (INNER) with "
-		          << conditions.size() << " condition(s)" << std::endl;
 		return;
 	}
 

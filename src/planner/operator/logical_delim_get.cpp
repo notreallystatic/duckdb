@@ -1,6 +1,7 @@
 #include "duckdb/planner/operator/logical_delim_get.hpp"
 
 #include "duckdb/main/config.hpp"
+#include "duckdb/planner/column_binding.hpp"
 
 namespace duckdb {
 
@@ -15,6 +16,15 @@ string LogicalDelimGet::GetName() const {
 	}
 #endif
 	return LogicalOperator::GetName();
+}
+
+MLIRAttributeInfo& LogicalDelimGet::resolveColumnBindingToAttributeInfo(ColumnBinding& binding) {
+	if (binding.table_index == table_index && binding.column_index < mlirAttributeInfos.size()) {
+		return mlirAttributeInfos[binding.column_index];
+	}
+	throw std::runtime_error("[LogicalDelimGet] Cannot resolve binding " + binding.ToString()
+	                         + " (table_index=" + std::to_string(table_index)
+	                         + ", attrs=" + std::to_string(mlirAttributeInfos.size()) + ")");
 }
 
 } // namespace duckdb

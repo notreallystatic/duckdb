@@ -54,7 +54,12 @@ MLIRAttributeInfo& LogicalDependentJoin::resolveColumnBindingToAttributeInfo(Col
 }
 
 void LogicalDependentJoin::resolveMLIRValue(MLIRTranslationContext& context, MLIRTranslationContext::ResolverScope& scope) {
-	std::cout << "[LogicalDependentJoin](resolveMLIRValue) :: Resolving MLIR value for LogicalDependentJoin, join_type=" << JoinTypeToString(join_type) << std::endl;
+	// The optimizer rewrites DEPENDENT_JOIN into a DELIM_JOIN by changing this->type.
+	// Delegate to the base class handler which contains the DELIM_JOIN → semijoin/antisemijoin logic.
+	if (this->type == LogicalOperatorType::LOGICAL_DELIM_JOIN) {
+		this->LogicalComparisonJoin::resolveMLIRValue(context, scope);
+		return;
+	}
 
 	if (join_type == JoinType::MARK) {
 		// MARK join = EXISTS subquery. We do NOT emit a join op. Instead:
@@ -82,7 +87,6 @@ void LogicalDependentJoin::resolveMLIRValue(MLIRTranslationContext& context, MLI
 				break;
 			}
 		}
-		std::cout << "[LogicalDependentJoin](resolveMLIRValue) :: MARK join: mark binding = " << markBinding.ToString() << std::endl;
 
 		// Store a callback keyed by the mark binding. BoundColumnRefExpression will
 		// intercept #[14.0] (or whatever the mark binding is), invoke this callback
@@ -102,7 +106,6 @@ void LogicalDependentJoin::resolveMLIRValue(MLIRTranslationContext& context, MLI
 		};
 
 		this->mlirValue = children[0]->getMLIRValue();
-		std::cout << "[LogicalDependentJoin](resolveMLIRValue) :: MARK join: deferred right side for relalg.exists" << std::endl;
 		return;
 	}
 
@@ -122,8 +125,6 @@ void LogicalDependentJoin::resolveMLIRValue(MLIRTranslationContext& context, MLI
 
 	for (idx_t bi = 0; bi < rightBindings.size(); bi++) {
 		auto binding = rightBindings[bi];
-		std::cout << "[LogicalDependentJoin](resolveMLIRValue) :: SINGLE join: registering deferred scalar callback for binding "
-		          << binding.ToString() << std::endl;
 
 		context.deferredScalarCallbacks[binding] = [rightChild, bi, &context, &scope](mlir::OpBuilder& predBuilder) -> mlir::Value {
 			auto& mlirContainer = lingodb::execution::MLIRContainer::getInstance();
@@ -164,8 +165,6 @@ void LogicalDependentJoin::resolveMLIRValue(MLIRTranslationContext& context, MLI
 	}
 
 	this->mlirValue = children[0]->getMLIRValue();
-	std::cout << "[LogicalDependentJoin](resolveMLIRValue) :: SINGLE join: registered "
-	          << rightBindings.size() << " deferred scalar callback(s)" << std::endl;
 }
 
 } // namespace duckdb
