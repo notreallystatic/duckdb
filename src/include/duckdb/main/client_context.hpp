@@ -87,7 +87,7 @@ public:
 	unique_ptr<ClientData> client_data;
 	//! Data for the currently running transaction
 	TransactionContext transaction;
-	//! Compilation mode: 0=none, 1=unoptimized plan, 2=optimized plan
+	//! Compilation mode: 0=none, 1=unoptimized plan, 2=optimized plan, 3=ask before every query
 	int compile_queries = 0;
 
 public:
@@ -97,6 +97,11 @@ public:
 
 	//! Read whether query compilation should be enabled
 	void readCompileConfig();
+
+	//! If session mode is 3 (ask every time), prompt for 0/1/2 to use for the current query only.
+	//! The session stays at 3; the returned mode is local to this one query.
+	//! Returns the effective mode (always 0-2) to use for this query.
+	int resolveQueryMode();
 
 	void compileQuery(LogicalOperator* logical_plan);
 

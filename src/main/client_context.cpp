@@ -168,10 +168,37 @@ void ClientContext::readCompileConfig() {
 		this->compile_queries = *COMPILE_QUERIES;
 		return;
 	}
-	std::cout << "Compilation mode: 0(none), 1(unoptimized plan), 2(optimized plan)" << std::endl;
-	std::cin >> this->compile_queries;
+	printf("Compilation mode: 0(none), 1(unoptimized plan), 2(optimized plan), 3(ask every query)\n");
+	fflush(stdout);
+	scanf("%d", &this->compile_queries);
+	int c;
+	while ((c = getchar()) != '\n' && c != EOF) {} // consume trailing newline
 	COMPILE_QUERIES = new int(this->compile_queries);
-	std::cout << "Compilation mode set to: " << this->compile_queries << std::endl;
+	printf("Compilation mode set to: %d\n", this->compile_queries);
+}
+
+int ClientContext::resolveQueryMode() {
+	if (compile_queries != 3) {
+		return compile_queries;
+	}
+	// Session is in "ask every time" mode: prompt for a per-query local mode (0-2).
+	// The choice applies only to this query; the session stays at 3.
+	for (;;) {
+		int chosen = -1;
+		printf("Mode for this query? 0(native) 1(unoptimized) 2(optimized): ");
+		fflush(stdout);
+		int matched = scanf("%d", &chosen);
+		int c;
+		while ((c = getchar()) != '\n' && c != EOF) {} // consume rest of line
+		if (matched != 1) {
+			// EOF or non-numeric input — default to optimized and break out
+			return 2;
+		}
+		if (chosen >= 0 && chosen <= 2) {
+			return chosen; // local to this query; session stays at 3
+		}
+		printf("Please enter 0, 1, or 2.\n");
+	}
 }
 
 ClientContext::~ClientContext() {
@@ -443,10 +470,13 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 	StatementType statement_type = statement->type;
 	auto result = make_shared_ptr<PreparedStatementData>(statement_type);
 
+	// Resolve the effective mode for this query (handles mode 3 "ask every time").
+	int query_mode = (statement_type == StatementType::SELECT_STATEMENT) ? resolveQueryMode() : 0;
+
 	auto &profiler = QueryProfiler::Get(*this);
 	profiler.StartQuery(query, IsExplainAnalyze(statement.get()), true);
 	profiler.StartPhase(MetricsType::PLANNER);
-	Planner logical_planner(*this, COMPILE_QUERIES ? *COMPILE_QUERIES : 0);
+	Planner logical_planner(*this, query_mode);
 	if (values) {
 		auto &parameter_values = *values;
 		for (auto &value : parameter_values) {
@@ -470,7 +500,7 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 	}
 
 	// Mode 1: compilation was done inside CreatePlan on the unoptimized plan — skip the optimizer.
-	if (compile_queries == 1 && statement_type == StatementType::SELECT_STATEMENT) {
+	if (query_mode == 1 && statement_type == StatementType::SELECT_STATEMENT) {
 		profiler.StartPhase(MetricsType::COMPILE_AND_RUN_QUERIES);
 		std::cout << "[ClientContext] (CreatePreparedStatementInternal) running compiled unoptimized plan\n";
 		profiler.EndPhase();
@@ -495,7 +525,7 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 	}
 
 	// Mode 2: compile the optimized plan.
-	if (compile_queries == 2) {
+	if (query_mode == 2) {
 		compileQuery(logical_plan.get());
 		profiler.StartPhase(MetricsType::COMPILE_AND_RUN_QUERIES);
 		std::cout << "[ClientContext] (CreatePreparedStatementInternal) running compiled optimized plan\n";
