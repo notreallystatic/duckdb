@@ -37,6 +37,8 @@ public:
 	idx_t groupings_index;
 	//! The set of groups (optional).
 	vector<unique_ptr<Expression>> groups;
+	//! MLIR attribute infos for GROUP BY expressions (parallel to groups, populated during resolveMLIRValue)
+	vector<MLIRAttributeInfo> mlirGroupAttributeInfos;
 	//! The set of grouping sets (optional).
 	vector<GroupingSet> grouping_sets;
 	//! The list of grouping function calls (optional)

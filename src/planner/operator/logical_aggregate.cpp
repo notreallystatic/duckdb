@@ -240,6 +240,12 @@ MLIRAttributeInfo& LogicalAggregate::resolveColumnBindingToAttributeInfo(ColumnB
 			std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Invalid column index " << binding.column_index << " for group_index " << group_index << std::endl;
 			throw std::runtime_error("Invalid column index " + std::to_string(binding.column_index) + " for group_index " + std::to_string(group_index));
 		}
+		// If resolveMLIRValue already populated the attr info (covers both column-refs and functions), use it
+		if (binding.column_index < mlirGroupAttributeInfos.size() &&
+		    mlirGroupAttributeInfos[binding.column_index].column != nullptr) {
+			return mlirGroupAttributeInfos[binding.column_index];
+		}
+		// Fallback for column refs when resolveMLIRValue hasn't run yet
 		auto expr = groups[binding.column_index].get();
 		if (expr->expression_class != ExpressionClass::BOUND_COLUMN_REF) {
 			std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Expected group expression to be a BoundColumnRefExpression but found expression of class " << ExpressionClassToString(expr->expression_class) << std::endl;
@@ -427,6 +433,53 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 	std::cout << std::endl;
 	std::cout << "[LogicalAggregate](resolveMLIRValue) :: Creating AggregationOp" << std::endl;
 
+	// Pre-compute any BOUND_FUNCTION group-by expressions via a map op, and
+	// populate mlirGroupAttributeInfos (parallel to groups[]).
+	mlirGroupAttributeInfos.resize(groups.size());
+	{
+		bool needsGroupMap = false;
+		for (auto& g : groups) {
+			if (g->expression_class != ExpressionClass::BOUND_COLUMN_REF) {
+				needsGroupMap = true;
+				break;
+			}
+		}
+		if (needsGroupMap) {
+			static size_t grpMapId = 0;
+			static size_t grpExprId = 0;
+			string grpMapName = "grp_map_" + std::to_string(grpMapId++);
+			auto* grpBlock = new mlir::Block();
+			grpBlock->addArgument(tuples::TupleType::get(builder.getContext()), loc);
+			auto grpTupleScope = translationContext.createTupleScope();
+			translationContext.setCurrentTuple(grpBlock->getArgument(0));
+			mlir::OpBuilder grpMapBuilder(&context);
+			grpMapBuilder.setInsertionPointToStart(grpBlock);
+			std::vector<mlir::Value> grpValues;
+			std::vector<mlir::Attribute> grpCols;
+			for (int i = 0; i < (int)groups.size(); ++i) {
+				if (groups[i]->expression_class == ExpressionClass::BOUND_COLUMN_REF) continue;
+				auto val = groups[i]->translateExpression(translationContext, grpMapBuilder, this);
+				string colName = "expr_" + std::to_string(grpExprId++);
+				auto attrDef = attrManager.createDef(grpMapName, colName);
+				attrDef.getColumn().type = val.getType();
+				grpValues.push_back(val);
+				grpCols.push_back(attrDef);
+				mlirGroupAttributeInfos[i] = MLIRAttributeInfo{grpMapName, colName, &attrDef.getColumn()};
+			}
+			auto grpMapOp = builder.create<relalg::MapOp>(loc, tupleStreamType, childValue, builder.getArrayAttr(grpCols));
+			grpMapOp.getRegion().push_back(grpBlock);
+			grpMapBuilder.create<tuples::ReturnOp>(loc, grpValues);
+			childValue = grpMapOp.getResult();
+		}
+		// Fill column-ref group attrs from the child
+		for (int i = 0; i < (int)groups.size(); ++i) {
+			if (groups[i]->expression_class == ExpressionClass::BOUND_COLUMN_REF) {
+				auto& colRef = groups[i]->Cast<BoundColumnRefExpression>();
+				mlirGroupAttributeInfos[i] = children[0]->resolveColumnBindingToAttributeInfo(colRef.binding);
+			}
+		}
+	}
+
 	static size_t aggrOpId = 0;
 	static size_t aggrArgId = 0;
 	string aggrOpName = "aggr_op_" + std::to_string(aggrOpId++);
@@ -434,17 +487,10 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 	std::vector<mlir::Attribute> groupByAttrs;
 	std::vector<mlir::Attribute> aggrAttrs;
 
-	for (int i = 0; i < groups.size(); ++i) {
-		auto& groupByExpr = groups[i];
-		if (groupByExpr->expression_class != ExpressionClass::BOUND_COLUMN_REF) {
-			std::cout << "[LogicalAggregate](resolveMLIRValue) :: Skipping group by expression of class " << ExpressionClassToString(groupByExpr->expression_class) << " since only column reference expressions are supported in group by for now" << std::endl;
-			continue;
+	for (int i = 0; i < (int)groups.size(); ++i) {
+		if (mlirGroupAttributeInfos[i].column != nullptr) {
+			groupByAttrs.push_back(attrManager.createRef(mlirGroupAttributeInfos[i].column));
 		}
-		auto& colRefExpr = groupByExpr->Cast<BoundColumnRefExpression>();
-		auto columnName = colRefExpr.ToString();
-		std::cout << "[LogicalAggregate](resolveMLIRValue) :: Group by column name :: " << columnName << std::endl;
-		auto columnAttrInfo = resolveColumnBindingToAttributeInfo(colRefExpr.binding);
-		groupByAttrs.push_back(attrManager.createRef(columnAttrInfo.column));
 	}
 	for (int i = 0; i < expressions.size(); ++i) {
 		string columnName = "aggr_arg_" + std::to_string(aggrArgId++);
