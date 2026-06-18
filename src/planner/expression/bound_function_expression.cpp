@@ -112,6 +112,22 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 		auto result = builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, builder.getI1Type(), "Like", mlir::ValueRange({ likeOperands[0], likeOperands[1] })).getRes();
 		return builder.create<lingodb::compiler::dialect::db::NotOp>(loc, result).getRes();
 	}
+	else if (function.name == "contains") {
+		// contains(str, substr) → Like(str, '%substr%')
+		D_ASSERT(children.size() == 2);
+		auto strVal = children[0]->translateExpression(translationContext, builder, op);
+		Value substrValue;
+		ExpressionExecutor::TryEvaluateScalar(*translationContext.clientContext, *children[1], substrValue);
+		std::string pattern = "%" + substrValue.GetValueUnsafe<string>() + "%";
+		auto charType = lingodb::compiler::dialect::db::CharType::get(builder.getContext(), (uint32_t)pattern.size());
+		auto patternConst = builder.create<lingodb::compiler::dialect::db::ConstantOp>(
+			loc, charType, builder.getStringAttr(pattern));
+		auto likeOperands = lingodb::compiler::frontend::sql::SQLTypeInference::toCommonBaseTypes(
+			builder, {strVal, patternConst.getResult()});
+		return builder.create<lingodb::compiler::dialect::db::RuntimeCall>(
+			loc, builder.getI1Type(), "Like",
+			mlir::ValueRange({likeOperands[0], likeOperands[1]})).getRes();
+	}
 	else if (function.name == "*") {
 		if (children.size() == 2) {
 			// Strip CAST(x AS DOUBLE) wrappers to keep native decimal precision.
