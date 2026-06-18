@@ -74,15 +74,31 @@ bool LogicalComparisonJoin::HasEquality(idx_t &range_count) const {
 }
 
 MLIRAttributeInfo& LogicalComparisonJoin::resolveColumnBindingToAttributeInfo(ColumnBinding& binding) {
-	auto leftBindings = children[0]->GetColumnBindings();
+	auto leftBindings  = children[0]->GetColumnBindings();
+	auto rightBindings = children[1]->GetColumnBindings();
+
+	if (join_type == JoinType::RIGHT) {
+		// RIGHT outer join: children[1] is preserved (non-nullable), children[0] is nullable.
+		// mlirAttributeInfos holds nullable attrs for children[0]'s bindings.
+		if (std::find(rightBindings.begin(), rightBindings.end(), binding) != rightBindings.end()) {
+			return children[1]->resolveColumnBindingToAttributeInfo(binding);
+		}
+		if (!mlirAttributeInfos.empty()) {
+			for (idx_t i = 0; i < leftBindings.size(); i++) {
+				if (leftBindings[i] == binding) {
+					return mlirAttributeInfos[i];
+				}
+			}
+		}
+		return children[0]->resolveColumnBindingToAttributeInfo(binding);
+	}
+
+	// LEFT join (and INNER/others): children[0] is non-nullable, children[1] may be nullable.
+	// mlirAttributeInfos holds nullable attrs for children[1]'s bindings (populated after mapping).
 	if (std::find(leftBindings.begin(), leftBindings.end(), binding) != leftBindings.end()) {
 		return children[0]->resolveColumnBindingToAttributeInfo(binding);
 	}
-	// After the outer join mapping is built, right-side bindings resolve to nullable columns.
-	// Before the mapping is built (during predicate construction), fall through to the original
-	// right-child attribute so the predicate accesses non-nullable types.
 	if (!mlirAttributeInfos.empty()) {
-		auto rightBindings = children[1]->GetColumnBindings();
 		for (idx_t i = 0; i < rightBindings.size(); i++) {
 			if (rightBindings[i] == binding) {
 				return mlirAttributeInfos[i];
@@ -311,6 +327,85 @@ void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, ML
 		auto mapping   = builder.getArrayAttr(mappingAttrs);
 		auto outerJoin = builder.create<relalg::OuterJoinOp>(
 		    loc, tuples::TupleStreamType::get(&mlirContext), leftValue, rightValue, mapping);
+		outerJoin.getPredicate().push_back(predBlock);
+
+		this->mlirValue = outerJoin.getResult();
+		return;
+	}
+
+	if (join_type == JoinType::RIGHT) {
+		// RIGHT OUTER JOIN: children[1] is preserved, children[0] is nullable.
+		// Expressed as relalg.outerjoin(preserved=children[1], nullable=children[0], mapping_for_children[0]).
+		children[0]->parentColumnBindings = this->parentColumnBindings;
+		children[1]->parentColumnBindings = this->parentColumnBindings;
+		children[0]->resolveMLIRValue(context, scope);
+		children[1]->resolveMLIRValue(context, scope);
+
+		auto nullableValue  = children[0]->getMLIRValue();
+		auto preservedValue = children[1]->getMLIRValue();
+
+		auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
+		auto &mlirContext = mlirContainerInstance.getContext();
+		auto &builder     = mlirContainerInstance.getBuilder();
+		auto  module      = mlirContainerInstance.getModuleOp();
+		auto  loc         = builder.getUnknownLoc();
+
+		tuples::ColumnManager &attrManager =
+		    module.getContext()->getLoadedDialect<tuples::TupleStreamDialect>()->getColumnManager();
+
+		// Build predicate before mapping so both sides still resolve as non-nullable inside it.
+		auto *predBlock = new mlir::Block();
+		mlir::OpBuilder predBuilder(builder.getContext());
+		predBlock->addArgument(tuples::TupleType::get(builder.getContext()), loc);
+		{
+			auto tupleScope = context.createTupleScope();
+			context.setCurrentTuple(predBlock->getArgument(0));
+			predBuilder.setInsertionPointToStart(predBlock);
+
+			std::vector<mlir::Value> condVals;
+			for (auto &cond : conditions) {
+				auto condExpr = make_uniq<BoundComparisonExpression>(
+				    cond.comparison, cond.left->Copy(), cond.right->Copy());
+				condVals.push_back(condExpr->translateExpression(context, predBuilder, this));
+			}
+			if (predicate) {
+				condVals.push_back(predicate->translateExpression(context, predBuilder, this));
+			}
+
+			mlir::Value condVal = condVals.size() == 1
+			    ? condVals[0]
+			    : predBuilder.create<db::AndOp>(loc, condVals).getResult();
+			predBuilder.create<tuples::ReturnOp>(loc, condVal);
+		}
+
+		// Build nullable mapping for children[0] (the non-preserved left side).
+		auto leftBindings = children[0]->GetColumnBindings();
+		std::vector<mlir::Attribute> mappingAttrs;
+		mlirAttributeInfos.clear();
+
+		std::string ojName = "ojcj" + std::to_string(compJoinOuterCounter++);
+		for (idx_t i = 0; i < leftBindings.size(); i++) {
+			auto &leftAttrInfo   = children[0]->resolveColumnBindingToAttributeInfo(leftBindings[i]);
+			auto *leftColumn     = leftAttrInfo.column;
+			std::string attrName = leftAttrInfo.col_name;
+
+			auto fromExisting = builder.getArrayAttr({attrManager.createRef(leftColumn)});
+			auto newDef       = attrManager.createDef(ojName, attrName, fromExisting);
+
+			auto originalType       = leftColumn->type;
+			newDef.getColumn().type = mlir::isa<db::NullableType>(originalType)
+			                              ? originalType
+			                              : db::NullableType::get(&mlirContext, originalType);
+
+			mappingAttrs.push_back(newDef);
+			context.mapAttribute(scope, attrName, &newDef.getColumn());
+			context.mapAttribute(scope, ojName + "." + attrName, &newDef.getColumn());
+			mlirAttributeInfos.push_back(MLIRAttributeInfo{ojName, attrName, &newDef.getColumn()});
+		}
+
+		auto mapping   = builder.getArrayAttr(mappingAttrs);
+		auto outerJoin = builder.create<relalg::OuterJoinOp>(
+		    loc, tuples::TupleStreamType::get(&mlirContext), preservedValue, nullableValue, mapping);
 		outerJoin.getPredicate().push_back(predBlock);
 
 		this->mlirValue = outerJoin.getResult();
