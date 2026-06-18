@@ -58,6 +58,16 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 		auto datePart = children[0]->translateExpression(translationContext, builder, op);
 		auto columnVal = children[1]->translateExpression(translationContext, builder, op);
 		return builder.create<lingodb::compiler::dialect::db::RuntimeCall>(loc, builder.getI64Type(), "ExtractFromDate", mlir::ValueRange({ datePart, columnVal })).getRes();
+	} else if (function.name == "year") {
+		// year(date) → ExtractFromDate("year", date) → i64
+		D_ASSERT(children.size() == 1);
+		auto dateVal = children[0]->translateExpression(translationContext, builder, op);
+		auto strType = lingodb::compiler::dialect::db::CharType::get(builder.getContext(), 4);
+		auto yearConst = builder.create<lingodb::compiler::dialect::db::ConstantOp>(
+		    loc, strType, builder.getStringAttr("year"));
+		return builder.create<lingodb::compiler::dialect::db::RuntimeCall>(
+		    loc, builder.getI64Type(), "ExtractFromDate",
+		    mlir::ValueRange({yearConst.getResult(), dateVal})).getRes();
 	}
 	else if (function.name == "-") {
 		if (children.size() == 2) {
