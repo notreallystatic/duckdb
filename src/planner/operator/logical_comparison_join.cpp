@@ -1,7 +1,9 @@
 #include "duckdb/planner/operator/logical_comparison_join.hpp"
 #include "duckdb/planner/operator/logical_delim_get.hpp"
+#include "duckdb/planner/operator/logical_column_data_get.hpp"
 #include "duckdb/planner/expression/bound_comparison_expression.hpp"
 #include "duckdb/planner/expression/bound_columnref_expression.hpp"
+#include "duckdb/planner/expression/bound_constant_expression.hpp"
 #include "duckdb/common/enum_util.hpp"
 
 #include "lingodb/execution/Frontend.h"
@@ -413,6 +415,70 @@ void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, ML
 	}
 
 	if (join_type == JoinType::MARK) {
+		// Special case: MARK join against CHUNK_GET = IN (literal list).
+		// Translate as db.oneof inside a deferredScalarCallback so the parent FILTER
+		// receives an i1 directly rather than going through relalg.exists.
+		if (children[1]->type == LogicalOperatorType::LOGICAL_CHUNK_GET) {
+			auto& chunkGet = children[1]->Cast<LogicalColumnDataGet>();
+
+			// Collect all values from the materialized IN list (one column, N rows).
+			std::vector<Value> inValues;
+			ColumnDataScanState scanState;
+			DataChunk chunk;
+			chunkGet.collection->InitializeScan(scanState);
+			chunkGet.collection->InitializeScanChunk(scanState, chunk);
+			while (chunkGet.collection->Scan(scanState, chunk)) {
+				chunk.Flatten();
+				for (idx_t i = 0; i < chunk.size(); i++) {
+					inValues.push_back(chunk.data[0].GetValue(i));
+				}
+			}
+
+			// Resolve left child (the stream to filter).
+			children[0]->parentColumnBindings = this->parentColumnBindings;
+			children[0]->resolveMLIRValue(context, scope);
+			this->mlirValue = children[0]->getMLIRValue();
+
+			// Find the mark ColumnBinding (the one output binding not in the left child).
+			auto leftBindings = children[0]->GetColumnBindings();
+			auto allBindings  = this->GetColumnBindings();
+			ColumnBinding markBinding;
+			for (auto& b : allBindings) {
+				if (std::find(leftBindings.begin(), leftBindings.end(), b) == leftBindings.end()) {
+					markBinding = b;
+					break;
+				}
+			}
+
+			// Wrap in shared_ptr so the lambda (stored in std::function) stays copyable.
+			auto lhsExpr = std::shared_ptr<Expression>(conditions[0].left->Copy());
+			auto* thisOp = this;
+
+			// Register a scalar callback: when the parent FILTER translates the mark
+			// binding, this builds db.oneof(col ? v1, v2, ...) and returns i1 directly.
+			context.deferredScalarCallbacks[markBinding] =
+			    [lhsExpr, inValues, thisOp, &context](mlir::OpBuilder& predBuilder) -> mlir::Value {
+				auto loc = predBuilder.getUnknownLoc();
+
+				// Translate the column being tested (e.g. p_size).
+				auto colVal = lhsExpr->translateExpression(context, predBuilder, thisOp);
+
+				// Build one db.constant per IN value, then normalize all to common type.
+				std::vector<mlir::Value> operands;
+				operands.push_back(colVal);
+				for (auto& v : inValues) {
+					auto constExpr = make_uniq<BoundConstantExpression>(v);
+					operands.push_back(constExpr->translateExpression(context, predBuilder, thisOp));
+				}
+				auto normalizedOperands =
+				    lingodb::compiler::frontend::sql::SQLTypeInference::toCommonBaseTypes(predBuilder, operands);
+
+				return predBuilder.create<db::OneOfOp>(loc, normalizedOperands).getResult();
+			};
+
+			return;
+		}
+
 		// 1. Resolve left child
 		children[0]->parentColumnBindings = this->parentColumnBindings;
 		children[0]->resolveMLIRValue(context, scope);
