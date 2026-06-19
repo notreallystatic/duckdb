@@ -547,10 +547,19 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 			auto columnDef = resolvedColumnAttrs[i];
 			mlir::Type aggrResultType = computeAggrResultType(builder, aggrFunc, columnDef->type, groupByAttrs.empty());
 
+			mlir::Value aggrInputStream = relArg;
+			if (bound_agg.IsDistinct()) {
+				aggrInputStream = aggrBuilder.create<relalg::ProjectionOp>(
+					aggrBuilder.getUnknownLoc(),
+					relalg::SetSemantic::distinct,
+					relArg,
+					aggrBuilder.getArrayAttr({attrManager.createRef(columnDef)})
+				);
+			}
 			auto val = aggrBuilder.create<relalg::AggrFuncOp>(builder.getUnknownLoc(),
 				aggrResultType,
 				aggrFunc,
-				relArg,
+				aggrInputStream,
 				attrManager.createRef(columnDef)
 			);
 			resultValues.push_back(val);
