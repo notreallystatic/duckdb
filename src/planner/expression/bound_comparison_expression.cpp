@@ -59,6 +59,13 @@ mlir::Value BoundComparisonExpression::translateExpression(MLIRTranslationContex
 	case ExpressionType::COMPARE_GREATERTHANOREQUALTO:
 		dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::gte;
 		break;
+	case ExpressionType::COMPARE_NOT_DISTINCT_FROM:
+		// Null-safe equality (DuckDB emits this for DELIM_JOIN conditions, e.g.
+		// "p_partkey IS NOT DISTINCT FROM p_partkey"). db's `isa` predicate matches
+		// SQL "IS NOT DISTINCT FROM" semantics (NULL = NULL is true) and never itself
+		// returns null.
+		dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::isa;
+		break;
 	default:
 		std::cout << "[translateExpression] Unhandled comparison type :: " <<
 		ExpressionTypeToString(comparison_type) << std::endl;

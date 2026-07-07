@@ -28,6 +28,11 @@ public:
 	idx_t table_index;
 	//! The types of the chunk
 	vector<LogicalType> chunk_types;
+	//! For a value-carrying DELIM_JOIN (scalar/aggregate correlated subquery, e.g. Q17)
+	//! the owning LogicalComparisonJoin resolves the distinct correlated keys into a real
+	//! relation and stashes it here before resolving this DELIM_GET's subtree. resolveMLIRValue
+	//! then simply aliases it — no new relation is materialized for the DELIM_GET itself.
+	mlir::Value aliasedRelation;
 
 public:
 	vector<ColumnBinding> GetColumnBindings() override {
@@ -40,6 +45,7 @@ public:
 	string GetName() const override;
 
 	MLIRAttributeInfo& resolveColumnBindingToAttributeInfo(ColumnBinding& binding) override;
+	void resolveMLIRValue(MLIRTranslationContext& context, MLIRTranslationContext::ResolverScope& scope) override;
 
 protected:
 	void ResolveTypes() override {

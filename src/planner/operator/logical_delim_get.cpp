@@ -27,4 +27,14 @@ MLIRAttributeInfo& LogicalDelimGet::resolveColumnBindingToAttributeInfo(ColumnBi
 	                         + ", attrs=" + std::to_string(mlirAttributeInfos.size()) + ")");
 }
 
+void LogicalDelimGet::resolveMLIRValue(MLIRTranslationContext&, MLIRTranslationContext::ResolverScope&) {
+	// A DELIM_GET never materializes its own relation. For a value-carrying DELIM_JOIN the
+	// owning LogicalComparisonJoin sets aliasedRelation to the (distinct, renamed) correlated
+	// keys before resolving this subtree; we simply alias it here.
+	if (!aliasedRelation) {
+		throw std::runtime_error("[LogicalDelimGet] resolveMLIRValue called before aliasedRelation was set");
+	}
+	this->mlirValue = aliasedRelation;
+}
+
 } // namespace duckdb

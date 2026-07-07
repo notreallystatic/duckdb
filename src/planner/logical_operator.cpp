@@ -54,7 +54,7 @@ mlir::Value LogicalOperator::getMLIRValue() {
 	} else if (!children.empty()) {
 		return children[0]->getMLIRValue();
 	} else {
-		throw std::runtime_error("No MLIR value found for this operator and it has no children to derive a value from.");
+		throw std::runtime_error("No MLIR value found for this operator and it has no children to derive a value from. Operator :: " + LogicalOperatorToString(type));
 	}
 }
 

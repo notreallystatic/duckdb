@@ -180,11 +180,113 @@ void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, ML
 		children[1]->resolveMLIRValue(context, scope);
 		auto outerValue = children[1]->getMLIRValue();
 
+		auto* delimGet = findDelimGet(children[0].get());
+		D_ASSERT(delimGet != nullptr && "DELIM_JOIN left child must contain a DELIM_GET");
+
+		// ── Value-carrying delim join (scalar/aggregate correlated subquery, e.g. Q17) ──
+		// A GROUP BY sits between this DELIM_JOIN and the inner join that consumes DELIM_GET,
+		// so DELIM_GET cannot be bypassed like in the RIGHT_SEMI/RIGHT_ANTI cases — it needs
+		// a real relation. We materialize the distinct correlated keys from the outer relation
+		// (children[1]) and rename them to fresh symbols, so the subquery side carries different
+		// column symbols than the outer side and the join-back has no collision.
+		if (join_type == JoinType::RIGHT) {
+			auto& container   = lingodb::execution::MLIRContainer::getInstance();
+			auto& builder     = container.getBuilder();
+			auto& mlirCtx     = container.getContext();
+			auto  module      = container.getModuleOp();
+			auto  loc         = builder.getUnknownLoc();
+			tuples::ColumnManager& attrManager =
+			    module.getContext()->getLoadedDialect<tuples::TupleStreamDialect>()->getColumnManager();
+
+			// The outer relation is consumed twice — once to feed the distinct correlated
+			// keys, once as the join-back input. relalg tuple streams are single-consumer
+			// and our pipeline doesn't run IntroduceTmp, so wrap it in relalg.tmp (materialize
+			// once, scan per result) to avoid the first consumer draining the stream.
+			auto outerBindings = children[1]->GetColumnBindings();
+			std::vector<mlir::Attribute> tmpCols;
+			for (auto& b : outerBindings) {
+				auto& attr = children[1]->resolveColumnBindingToAttributeInfo(b);
+				tmpCols.push_back(attrManager.createRef(attr.column));
+			}
+			auto tsType = tuples::TupleStreamType::get(&mlirCtx);
+			auto tmpOp  = builder.create<relalg::TmpOp>(
+			    loc, mlir::TypeRange{tsType, tsType}, outerValue, builder.getArrayAttr(tmpCols));
+			mlir::Value outerForDistinct = tmpOp.getResult(0);
+			mlir::Value outerForJoin     = tmpOp.getResult(1);
+
+			// Build: distinctKeys = relalg.projection distinct [outer correlated cols] (outerForDistinct)
+			//        renamedKeys  = relalg.renaming distinctKeys : [@delim::@dk_i = outer col]
+			// and point DELIM_GET's columns at the fresh @delim::@dk_i defs.
+			std::string delimScope = "delim" + std::to_string(compJoinOuterCounter++);
+			std::vector<mlir::Attribute> distinctRefs;
+			std::vector<mlir::Attribute> renameDefs;
+			delimGet->mlirAttributeInfos.clear();
+			for (idx_t i = 0; i < duplicate_eliminated_columns.size(); i++) {
+				auto& bcre       = duplicate_eliminated_columns[i]->Cast<BoundColumnRefExpression>();
+				auto  binding    = bcre.binding;
+				auto& outerAttr  = children[1]->resolveColumnBindingToAttributeInfo(binding);
+				auto* outerCol   = outerAttr.column;
+
+				distinctRefs.push_back(attrManager.createRef(outerCol));
+
+				std::string dkName    = "dk" + std::to_string(i);
+				auto        fromExist = builder.getArrayAttr({attrManager.createRef(outerCol)});
+				auto        newDef    = attrManager.createDef(delimScope, dkName, fromExist);
+				newDef.getColumn().type = outerCol->type;
+				renameDefs.push_back(newDef);
+				delimGet->mlirAttributeInfos.push_back(
+				    MLIRAttributeInfo{delimScope, dkName, &newDef.getColumn()});
+			}
+
+			auto distinctOp = builder.create<relalg::ProjectionOp>(
+			    loc, relalg::SetSemantic::distinct, outerForDistinct, builder.getArrayAttr(distinctRefs));
+			auto renamedKeys = builder.create<relalg::RenamingOp>(
+			    loc, tuples::TupleStreamType::get(&mlirCtx), distinctOp.getResult(),
+			    builder.getArrayAttr(renameDefs));
+			delimGet->aliasedRelation = renamedKeys.getResult();
+
+			// Resolve the subquery side (children[0]): inner join lineitem ⋈ renamedKeys,
+			// group by the delim key, avg, threshold map — all built by existing codegen.
+			children[0]->parentColumnBindings = this->parentColumnBindings;
+			children[0]->resolveMLIRValue(context, scope);
+			auto subqueryValue = children[0]->getMLIRValue();
+
+			// Join-back predicate from this->conditions (outer.key IS NOT DISTINCT FROM subquery.key).
+			// Inner join is valid here: every outer correlated key is guaranteed a matching group,
+			// so no outer row is dropped — and it sidesteps the outer-join null-fill lowering.
+			auto* predBlock = new mlir::Block();
+			predBlock->addArgument(tuples::TupleType::get(&mlirCtx), loc);
+			{
+				mlir::OpBuilder predBuilder(&mlirCtx);
+				predBuilder.setInsertionPointToStart(predBlock);
+				auto tupleScope = context.createTupleScope();
+				context.setCurrentTuple(predBlock->getArgument(0));
+
+				std::vector<mlir::Value> condVals;
+				for (auto& cond : conditions) {
+					auto condExpr = make_uniq<BoundComparisonExpression>(
+					    cond.comparison, cond.left->Copy(), cond.right->Copy());
+					condVals.push_back(condExpr->translateExpression(context, predBuilder, this));
+				}
+				if (predicate) {
+					condVals.push_back(predicate->translateExpression(context, predBuilder, this));
+				}
+				mlir::Value combined = condVals.size() == 1
+				    ? condVals[0]
+				    : predBuilder.create<db::AndOp>(loc, condVals).getResult();
+				predBuilder.create<tuples::ReturnOp>(loc, combined);
+			}
+
+			auto joinOp = builder.create<relalg::InnerJoinOp>(
+			    loc, tuples::TupleStreamType::get(&mlirCtx), outerForJoin, subqueryValue);
+			joinOp.getPredicate().push_back(predBlock);
+			this->mlirValue = joinOp.getResult();
+			return;
+		}
+
 		// Step 2: pre-populate DELIM_GET's mlirAttributeInfos so that the join
 		// condition expressions inside the inner COMPARISON_JOIN can resolve
 		// DELIM_GET column bindings to the outer relation's already-resolved attrs.
-		auto* delimGet = findDelimGet(children[0].get());
-		D_ASSERT(delimGet != nullptr && "DELIM_JOIN left child must contain a DELIM_GET");
 		delimGet->mlirAttributeInfos.clear();
 		for (idx_t i = 0; i < duplicate_eliminated_columns.size(); i++) {
 			auto& elimExpr = duplicate_eliminated_columns[i];

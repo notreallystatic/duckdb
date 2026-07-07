@@ -84,6 +84,46 @@ mlir::Value BoundConstantExpression::translateExpression(MLIRTranslationContext&
 			loc, type,
 			builder.getStringAttr(value.ToString()));
 	}
+	case LogicalTypeId::DOUBLE: {
+		// The optimizer's constant folding can emit raw DOUBLE literals (e.g. the "0.2" in
+		// Q17's "0.2 * avg(...)"), where the unoptimized plan wrapped the same literal in a
+		// CAST over a small DECIMAL constant. We must NOT map DOUBLE to the wide
+		// !db.decimal<38,19> that getMLIRTypeFromDuckDBLogicalType() uses for columns:
+		// multiplying such a wide constant overflows the decimal precision and yields a
+		// garbage result. Instead derive a tight !db.decimal<precision,scale> straight from
+		// the literal's shortest string form, matching how LingoDB's own frontend represents
+		// these (e.g. 0.2 -> !db.decimal<2,1>).
+		std::string s = value.ToString();
+		if (s.find('e') == string::npos && s.find('E') == string::npos && s.find("inf") == string::npos &&
+		    s.find("nan") == string::npos) {
+			std::string body = s;
+			if (!body.empty() && (body[0] == '-' || body[0] == '+')) {
+				body = body.substr(1);
+			}
+			auto dot = body.find('.');
+			uint8_t scale = 0;
+			uint8_t precision = 1;
+			if (dot == string::npos) {
+				precision = static_cast<uint8_t>(std::max<size_t>(1, body.size()));
+			} else {
+				auto intDigits  = dot;
+				auto fracDigits = body.size() - dot - 1;
+				scale     = static_cast<uint8_t>(fracDigits);
+				precision = static_cast<uint8_t>(std::max<size_t>(1, intDigits + fracDigits));
+			}
+			if (precision < scale) {
+				precision = scale;
+			}
+			auto type = lingodb::compiler::dialect::db::DecimalType::get(builder.getContext(), precision, scale);
+			return builder.create<lingodb::compiler::dialect::db::ConstantOp>(
+				loc, type, builder.getStringAttr(s));
+		}
+		// Fallback for scientific/special forms: use the column-style wide decimal mapping.
+		auto type = getMLIRTypeFromDuckDBLogicalType(value.type(), builder.getContext());
+		return builder.create<lingodb::compiler::dialect::db::ConstantOp>(
+			loc, type,
+			builder.getStringAttr(s));
+	}
 	default: {
 		std::cout << "[BoundConstantExpression::translateExpression] Unhandled constant type :: " << value.type().ToString()
 			<< std::endl;
