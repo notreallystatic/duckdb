@@ -112,10 +112,14 @@ MLIRAttributeInfo& LogicalComparisonJoin::resolveColumnBindingToAttributeInfo(Co
 
 // ── DELIM_JOIN helpers ────────────────────────────────────────────────────────
 
-// Recursively locate the LogicalDelimGet leaf in a subtree.
+// Recursively locate the LogicalDelimGet leaf in a subtree. Does not recurse into a nested
+// DELIM_JOIN: any DELIM_GET inside one belongs to (and is fully consumed by) that nested join,
+// not to whichever ancestor DELIM_JOIN happens to be searching for its own DELIM_GET.
 static LogicalDelimGet* findDelimGet(LogicalOperator* node) {
 	if (node->type == LogicalOperatorType::LOGICAL_DELIM_GET)
 		return &node->Cast<LogicalDelimGet>();
+	if (node->type == LogicalOperatorType::LOGICAL_DELIM_JOIN)
+		return nullptr;
 	for (auto& child : node->children) {
 		if (auto* r = findDelimGet(child.get()))
 			return r;
@@ -175,13 +179,25 @@ static int compJoinOuterCounter = 0;
 void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, MLIRTranslationContext::ResolverScope& scope) {
 	// ── DELIM_JOIN (correlated subquery decorrelated by the optimizer) ────────
 	if (this->type == LogicalOperatorType::LOGICAL_DELIM_JOIN) {
-		// Step 1: resolve the outer relation (right child, e.g. orders + date filter).
-		children[1]->parentColumnBindings = this->parentColumnBindings;
-		children[1]->resolveMLIRValue(context, scope);
-		auto outerValue = children[1]->getMLIRValue();
+		// Step 0: figure out which child actually carries the DELIM_GET rather than assuming
+		// an index. For RIGHT/RIGHT_SEMI/RIGHT_ANTI, DuckDB puts the correlated (DELIM_GET)
+		// side in children[0] and the outer/preserved relation in children[1]. For plain
+		// SEMI/ANTI delim joins (e.g. a NOT EXISTS nested inside another DELIM_JOIN, as in
+		// Q21) this is reversed: children[0] is the outer/preserved side and children[1]
+		// carries the DELIM_GET. Detecting by content (not by join_type) is robust to either.
+		LogicalOperator* outerChild = children[1].get();
+		LogicalOperator* delimChild = children[0].get();
+		if (!subtreeContainsDelimGet(delimChild) && subtreeContainsDelimGet(outerChild)) {
+			std::swap(outerChild, delimChild);
+		}
 
-		auto* delimGet = findDelimGet(children[0].get());
-		D_ASSERT(delimGet != nullptr && "DELIM_JOIN left child must contain a DELIM_GET");
+		// Step 1: resolve the outer relation first.
+		outerChild->parentColumnBindings = this->parentColumnBindings;
+		outerChild->resolveMLIRValue(context, scope);
+		auto outerValue = outerChild->getMLIRValue();
+
+		auto* delimGet = findDelimGet(delimChild);
+		D_ASSERT(delimGet != nullptr && "DELIM_JOIN must have a DELIM_GET in one of its children");
 
 		// ── Value-carrying delim join (scalar/aggregate correlated subquery, e.g. Q17) ──
 		// A GROUP BY sits between this DELIM_JOIN and the inner join that consumes DELIM_GET,
@@ -189,7 +205,7 @@ void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, ML
 		// a real relation. We materialize the distinct correlated keys from the outer relation
 		// (children[1]) and rename them to fresh symbols, so the subquery side carries different
 		// column symbols than the outer side and the join-back has no collision.
-		if (join_type == JoinType::RIGHT) {
+		if (join_type == JoinType::RIGHT || join_type == JoinType::RIGHT_SEMI) {
 			auto& container   = lingodb::execution::MLIRContainer::getInstance();
 			auto& builder     = container.getBuilder();
 			auto& mlirCtx     = container.getContext();
@@ -252,8 +268,13 @@ void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, ML
 			auto subqueryValue = children[0]->getMLIRValue();
 
 			// Join-back predicate from this->conditions (outer.key IS NOT DISTINCT FROM subquery.key).
-			// Inner join is valid here: every outer correlated key is guaranteed a matching group,
-			// so no outer row is dropped — and it sidesteps the outer-join null-fill lowering.
+			// For RIGHT (scalar/aggregate subquery, e.g. Q17/Q20): subqueryValue is grouped by the
+			// delim key, so every outer correlated key is guaranteed exactly one matching row — an
+			// inner join is valid (no outer row dropped) and carries the computed value into scope.
+			// For RIGHT_SEMI (correlated EXISTS, e.g. Q21's l2 check): subqueryValue is NOT grouped —
+			// it can have zero or many matching rows per delim key (one per matching subquery row).
+			// An inner join here would fan the outer row out once per match, inflating downstream
+			// counts/aggregates. A semijoin correctly collapses that to "at least one match".
 			auto* predBlock = new mlir::Block();
 			predBlock->addArgument(tuples::TupleType::get(&mlirCtx), loc);
 			{
@@ -277,10 +298,17 @@ void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, ML
 				predBuilder.create<tuples::ReturnOp>(loc, combined);
 			}
 
-			auto joinOp = builder.create<relalg::InnerJoinOp>(
-			    loc, tuples::TupleStreamType::get(&mlirCtx), outerForJoin, subqueryValue);
-			joinOp.getPredicate().push_back(predBlock);
-			this->mlirValue = joinOp.getResult();
+			if (join_type == JoinType::RIGHT_SEMI) {
+				auto semiJoin = builder.create<relalg::SemiJoinOp>(
+				    loc, tuples::TupleStreamType::get(&mlirCtx), outerForJoin, subqueryValue);
+				semiJoin.getPredicate().push_back(predBlock);
+				this->mlirValue = semiJoin.getResult();
+			} else {
+				auto joinOp = builder.create<relalg::InnerJoinOp>(
+				    loc, tuples::TupleStreamType::get(&mlirCtx), outerForJoin, subqueryValue);
+				joinOp.getPredicate().push_back(predBlock);
+				this->mlirValue = joinOp.getResult();
+			}
 			return;
 		}
 
@@ -292,14 +320,15 @@ void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, ML
 			auto& elimExpr = duplicate_eliminated_columns[i];
 			auto& bcre = elimExpr->Cast<BoundColumnRefExpression>();
 			auto binding = bcre.binding;
-			auto& attrInfo = children[1]->resolveColumnBindingToAttributeInfo(binding);
+			auto& attrInfo = outerChild->resolveColumnBindingToAttributeInfo(binding);
 			delimGet->mlirAttributeInfos.push_back(attrInfo);
 		}
 
-		// Step 3: walk the left child, skipping DELIM_GET and narrowing projections,
-		// and extract the real inner relation + a pointer to the inner COMPARISON_JOIN.
+		// Step 3: walk the DELIM_GET-bearing child, skipping DELIM_GET and narrowing
+		// projections, and extract the real inner relation + a pointer to the inner
+		// COMPARISON_JOIN.
 		auto innerInfo    = extractDelimInnerPipeline(
-		    children[0].get(), this->parentColumnBindings, context, scope);
+		    delimChild, this->parentColumnBindings, context, scope);
 		auto  innerValue  = innerInfo.innerValue;
 		auto* innerJoinOp = innerInfo.innerJoinOp;
 
@@ -338,13 +367,16 @@ void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, ML
 			}
 		}
 
-		// Step 5: emit the appropriate relalg join op.
-		if (join_type == JoinType::RIGHT_SEMI) {
+		// Step 5: emit the appropriate relalg join op. RIGHT_SEMI/RIGHT_ANTI and plain
+		// SEMI/ANTI differ in DuckDB only by which child holds the outer/preserved relation
+		// (handled above via outerChild/delimChild) — the relalg emission is identical:
+		// outerValue is always the preserved operand, innerValue the existence-check operand.
+		if (join_type == JoinType::RIGHT_SEMI || join_type == JoinType::SEMI) {
 			auto semiJoin = builder.create<relalg::SemiJoinOp>(
 			    loc, tuples::TupleStreamType::get(&mlirCtx), outerValue, innerValue);
 			semiJoin.getPredicate().push_back(predBlock);
 			this->mlirValue = semiJoin.getResult();
-		} else if (join_type == JoinType::RIGHT_ANTI) {
+		} else if (join_type == JoinType::RIGHT_ANTI || join_type == JoinType::ANTI) {
 			auto antiJoin = builder.create<relalg::AntiSemiJoinOp>(
 			    loc, tuples::TupleStreamType::get(&mlirCtx), outerValue, innerValue);
 			antiJoin.getPredicate().push_back(predBlock);
