@@ -74,6 +74,20 @@ static mlir::Type computeAggrResultType(mlir::OpBuilder &builder, relalg::AggrFu
 		aggrResultType = db::NullableType::get(builder.getContext(), aggrResultType);
 	}
 
+	// min/max results are always nullable, matching LingoDB's own SQL frontend (Parser.cpp).
+	// This isn't just cosmetic: LingoDB's MinAggrFunc/MaxAggrFunc (RelAlgToSubOp.cpp) pick their
+	// hash-table "no group yet" identity value based on nullability. For a non-nullable state they
+	// build it via db.constant(<int64 sentinel>) on the *decimal* type, which is lowered by
+	// round-tripping through a string decimal literal and rescaling by 10^scale (LowerToStd.cpp) —
+	// for min's INT64_MAX sentinel that overflows the (e.g. 64-bit) storage width and silently
+	// wraps to garbage (observed as -1.00 for a decimal(_,2) MIN). For a nullable state they use
+	// db.null instead, which has no such overflow path. Marking the result nullable here sidesteps
+	// the broken non-nullable identity construction entirely, without touching vendored lingodb_ext.
+	if (!mlir::isa<db::NullableType>(aggrResultType) &&
+	    (aggrFunc == relalg::AggrFunc::min || aggrFunc == relalg::AggrFunc::max)) {
+		aggrResultType = db::NullableType::get(builder.getContext(), aggrResultType);
+	}
+
 	return aggrResultType;
 }
 
