@@ -203,9 +203,9 @@ void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, ML
 		// A GROUP BY sits between this DELIM_JOIN and the inner join that consumes DELIM_GET,
 		// so DELIM_GET cannot be bypassed like in the RIGHT_SEMI/RIGHT_ANTI cases — it needs
 		// a real relation. We materialize the distinct correlated keys from the outer relation
-		// (children[1]) and rename them to fresh symbols, so the subquery side carries different
-		// column symbols than the outer side and the join-back has no collision.
-		if (join_type == JoinType::RIGHT || join_type == JoinType::RIGHT_SEMI) {
+		// (outerChild) and rename them to fresh symbols, so the subquery side (delimChild)
+		// carries different column symbols than the outer side and the join-back has no collision.
+		if (join_type == JoinType::RIGHT || join_type == JoinType::RIGHT_SEMI || join_type == JoinType::LEFT) {
 			auto& container   = lingodb::execution::MLIRContainer::getInstance();
 			auto& builder     = container.getBuilder();
 			auto& mlirCtx     = container.getContext();
@@ -218,10 +218,10 @@ void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, ML
 			// keys, once as the join-back input. relalg tuple streams are single-consumer
 			// and our pipeline doesn't run IntroduceTmp, so wrap it in relalg.tmp (materialize
 			// once, scan per result) to avoid the first consumer draining the stream.
-			auto outerBindings = children[1]->GetColumnBindings();
+			auto outerBindings = outerChild->GetColumnBindings();
 			std::vector<mlir::Attribute> tmpCols;
 			for (auto& b : outerBindings) {
-				auto& attr = children[1]->resolveColumnBindingToAttributeInfo(b);
+				auto& attr = outerChild->resolveColumnBindingToAttributeInfo(b);
 				tmpCols.push_back(attrManager.createRef(attr.column));
 			}
 			auto tsType = tuples::TupleStreamType::get(&mlirCtx);
@@ -240,7 +240,7 @@ void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, ML
 			for (idx_t i = 0; i < duplicate_eliminated_columns.size(); i++) {
 				auto& bcre       = duplicate_eliminated_columns[i]->Cast<BoundColumnRefExpression>();
 				auto  binding    = bcre.binding;
-				auto& outerAttr  = children[1]->resolveColumnBindingToAttributeInfo(binding);
+				auto& outerAttr  = outerChild->resolveColumnBindingToAttributeInfo(binding);
 				auto* outerCol   = outerAttr.column;
 
 				distinctRefs.push_back(attrManager.createRef(outerCol));
@@ -261,11 +261,11 @@ void LogicalComparisonJoin::resolveMLIRValue(MLIRTranslationContext& context, ML
 			    builder.getArrayAttr(renameDefs));
 			delimGet->aliasedRelation = renamedKeys.getResult();
 
-			// Resolve the subquery side (children[0]): inner join lineitem ⋈ renamedKeys,
+			// Resolve the subquery side (delimChild): inner join lineitem ⋈ renamedKeys,
 			// group by the delim key, avg, threshold map — all built by existing codegen.
-			children[0]->parentColumnBindings = this->parentColumnBindings;
-			children[0]->resolveMLIRValue(context, scope);
-			auto subqueryValue = children[0]->getMLIRValue();
+			delimChild->parentColumnBindings = this->parentColumnBindings;
+			delimChild->resolveMLIRValue(context, scope);
+			auto subqueryValue = delimChild->getMLIRValue();
 
 			// Join-back predicate from this->conditions (outer.key IS NOT DISTINCT FROM subquery.key).
 			// For RIGHT (scalar/aggregate subquery, e.g. Q17/Q20): subqueryValue is grouped by the
