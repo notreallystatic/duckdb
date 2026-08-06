@@ -4923,12 +4923,20 @@ int SQLITE_CDECL wmain(int argc, wchar_t **wargv) {
 	** and the first command to execute.
 	*/
 	verify_uninitialized();
+	bool lingodbDirCaptured = false;
 	for (i = 1; i < argc; i++) {
 		char *z;
 		z = argv[i];
 		if (z[0] != '-') {
 			if (data.zDbFilename.empty()) {
 				data.zDbFilename = z;
+			} else if (!lingodbDirCaptured) {
+				/* Second positional argument: the LingoDB database directory used by
+				** the compiled (MLIR) execution backend. Forwarded to runMLIR() via
+				** the LINGODB_DB_DIR environment variable. Does not disable stdin, so
+				** queries can still be read from stdin as usual. */
+				setenv("LINGODB_DB_DIR", z, 1);
+				lingodbDirCaptured = true;
 			} else {
 				/* Excesss arguments are interpreted as SQL (or dot-commands) and
 				** mean that nothing is read from stdin */

@@ -50,8 +50,13 @@ void runMLIR() {
 	// moduleOp->dump();
 
 	bool eagerLoading = std::getenv("LINGODB_BACKEND_ONLY");
+	// The LingoDB database directory may be overridden via the second CLI
+	// argument (e.g. `duckdb db.duckdb my_lingodb_dir/`), which the shell
+	// forwards through the LINGODB_DB_DIR environment variable. Falls back to
+	// "bench_db" when no directory is supplied.
+	const char *lingodbDbDir = std::getenv("LINGODB_DB_DIR");
 	std::shared_ptr<lingodb::runtime::Session> session =
-	    lingodb::runtime::Session::createSession("bench_db", eagerLoading);
+	    lingodb::runtime::Session::createSession(lingodbDbDir ? lingodbDbDir : "bench_db", eagerLoading);
 	lingodb::compiler::support::eval::init();
 
 	lingodb::execution::ExecutionMode runMode = lingodb::execution::getExecutionMode();
