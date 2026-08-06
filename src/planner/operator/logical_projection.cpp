@@ -30,7 +30,7 @@ MLIRAttributeInfo& LogicalProjection::resolveColumnBindingToAttributeInfo(Column
 			throw std::runtime_error("Column index " + to_string(columnIndex) + " out of bounds for projection expressions of size " + to_string(expressions.size()));
 		}
 		if (this->hasMLIRResolutionSkipped) {
-			std::cout << "[LogicalProjection](resolveColumnBindingToAttributeInfo) :: MLIR resolution has been skipped for this projection, returning default MLIR attribute info for binding " << binding.ToString() << std::endl;
+			// std::cout << "[LogicalProjection](resolveColumnBindingToAttributeInfo) :: MLIR resolution has been skipped for this projection, returning default MLIR attribute info for binding " << binding.ToString() << std::endl;
 			if (!defaultMLIRAttributeInfo) {
 				throw std::runtime_error("Default MLIR attribute info is not set for this projection");
 			}
@@ -38,7 +38,7 @@ MLIRAttributeInfo& LogicalProjection::resolveColumnBindingToAttributeInfo(Column
 		}
 		// If this projection created a map op for computed expressions, return the stored attribute info
 		if (!mlirAttributeInfos.empty() && columnIndex < mlirAttributeInfos.size()) {
-			std::cout << "[LogicalProjection](resolveColumnBindingToAttributeInfo) :: Returning map attribute info for binding " << binding.ToString() << std::endl;
+			// std::cout << "[LogicalProjection](resolveColumnBindingToAttributeInfo) :: Returning map attribute info for binding " << binding.ToString() << std::endl;
 			return mlirAttributeInfos[columnIndex];
 		}
 		auto expr = expressions[columnIndex].get();
@@ -52,7 +52,7 @@ MLIRAttributeInfo& LogicalProjection::resolveColumnBindingToAttributeInfo(Column
 		}
 		return children[0]->resolveColumnBindingToAttributeInfo(columnBinding);
 	}
-	std::cout << "[LogicalProjection](resolveColumnBindingToAttributeInfo) :: table index did not match projection's table index for binding " << binding.ToString() << std::endl;
+	// std::cout << "[LogicalProjection](resolveColumnBindingToAttributeInfo) :: table index did not match projection's table index for binding " << binding.ToString() << std::endl;
 	if (children.empty()) {
 		throw std::runtime_error("No children to resolve column binding to attribute info for binding " + binding.ToString());
 	}
@@ -102,7 +102,7 @@ string LogicalProjection::GetName() const {
 }
 
 void LogicalProjection::resolveMLIRValue(MLIRTranslationContext& translationContext, MLIRTranslationContext::ResolverScope& scope) {
-	std::cout << "[LogicalProjection](resolveMLIRValue) :: " << LogicalOperatorToString(type) << std::endl;
+	// std::cout << "[LogicalProjection](resolveMLIRValue) :: " << LogicalOperatorToString(type) << std::endl;
 	/*
 		For subqueries with scalar result like `SELECT * FROM t1 WHERE t1.a > (SELECT avg(t1.a) FROM t1) LIMIT 10`
 		DuckDB wraps this subquery with an aggregate over `avg` and also adds a `count`.
@@ -126,18 +126,18 @@ void LogicalProjection::resolveMLIRValue(MLIRTranslationContext& translationCont
 		return expr->type == ExpressionType::CASE_EXPR;
 	});
 	if (hasCaseExpression) {
-		std::cout << "[LogicalProjection](resolveMLIRValue) :: Projection has a case expression, skipping MLIR value resolution for this node and its child nodes" << std::endl;
+		// std::cout << "[LogicalProjection](resolveMLIRValue) :: Projection has a case expression, skipping MLIR value resolution for this node and its child nodes" << std::endl;
 		auto nextChild = children.empty() ? nullptr : children[0].get();
 		if (nextChild) {
-			std::cout << "[LogicalProjection](resolveMLIRValue) :: Checking child node of projection for case expression :: " << LogicalOperatorToString(nextChild->type) << std::endl;
+			// std::cout << "[LogicalProjection](resolveMLIRValue) :: Checking child node of projection for case expression :: " << LogicalOperatorToString(nextChild->type) << std::endl;
 			if (nextChild->type == LogicalOperatorType::LOGICAL_AGGREGATE_AND_GROUP_BY) {
-				std::cout << "[LogicalProjection](resolveMLIRValue) :: Child node of projection is an aggregate and group by node, skipping MLIR value resolution for this child node as well" << std::endl;
+				// std::cout << "[LogicalProjection](resolveMLIRValue) :: Child node of projection is an aggregate and group by node, skipping MLIR value resolution for this child node as well" << std::endl;
 				auto nextNextChild = nextChild->children.empty() ? nullptr : nextChild->children[0].get();
 				if (nextNextChild) {
-					std::cout << "[LogicalProjection](resolveMLIRValue) :: Checking child node of aggregate and group by node for case expression :: " << LogicalOperatorToString(nextNextChild->type) << std::endl;
+					// std::cout << "[LogicalProjection](resolveMLIRValue) :: Checking child node of aggregate and group by node for case expression :: " << LogicalOperatorToString(nextNextChild->type) << std::endl;
 					nextNextChild->resolveMLIRValue(translationContext, scope);
 					auto columnBindings = nextNextChild->GetColumnBindings();
-					std::cout << "[LogicalProjection](resolveMLIRValue) :: Column bindings of child node of aggregate and group by node :: " << ColumnBindingsToString(columnBindings) << std::endl;
+					// std::cout << "[LogicalProjection](resolveMLIRValue) :: Column bindings of child node of aggregate and group by node :: " << ColumnBindingsToString(columnBindings) << std::endl;
 					auto &resolvedColumnBinding = nextNextChild->resolveColumnBindingToAttributeInfo(columnBindings[0]);
 					this->defaultMLIRAttributeInfo = &resolvedColumnBinding;
 					this->hasMLIRResolutionSkipped = true;
@@ -149,7 +149,7 @@ void LogicalProjection::resolveMLIRValue(MLIRTranslationContext& translationCont
 	for (const auto &child: children) {
 		child->resolveMLIRValue(translationContext, scope);
 	}
-	std::cerr << "[DEBUG] LogicalProjection: children resolved for table_index " << table_index << std::endl;
+	// std::cerr << "[DEBUG] LogicalProjection: children resolved for table_index " << table_index << std::endl;
 
 	// After resolving children, check if any expression is a computed expression (not a simple column ref).
 	// If so, create a relalg.map operation to compute those expressions.
@@ -158,7 +158,7 @@ void LogicalProjection::resolveMLIRValue(MLIRTranslationContext& translationCont
 	});
 
 	if (hasComputedExpr) {
-		std::cout << "[LogicalProjection](resolveMLIRValue) :: Projection has computed expressions, creating relalg.map" << std::endl;
+		// std::cout << "[LogicalProjection](resolveMLIRValue) :: Projection has computed expressions, creating relalg.map" << std::endl;
 
 		auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 		auto &builder = mlirContainerInstance.getBuilder();
@@ -204,9 +204,9 @@ void LogicalProjection::resolveMLIRValue(MLIRTranslationContext& translationCont
 		mapBuilder.create<tuples::ReturnOp>(loc, createdValues);
 
 		this->mlirValue = mapOp.getResult();
-		std::cout << "[LogicalProjection](resolveMLIRValue) :: Created MapOp for projection: ";
-		this->mlirValue.print(llvm::outs());
-		std::cout << std::endl;
+		// std::cout << "[LogicalProjection](resolveMLIRValue) :: Created MapOp for projection: ";
+		// this->mlirValue.print(llvm::outs());
+		// std::cout << std::endl;
 	}
 }
 

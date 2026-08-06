@@ -67,8 +67,8 @@ mlir::Value BoundComparisonExpression::translateExpression(MLIRTranslationContex
 		dbPred = lingodb::compiler::dialect::db::DBCmpPredicate::isa;
 		break;
 	default:
-		std::cout << "[translateExpression] Unhandled comparison type :: " <<
-		ExpressionTypeToString(comparison_type) << std::endl;
+		// std::cout << "[translateExpression] Unhandled comparison type :: " <<
+		// ExpressionTypeToString(comparison_type) << std::endl;
 		throw std::runtime_error("Unhandled comparison type");
 	}
 	auto ct = lingodb::compiler::frontend::sql::SQLTypeInference::toCommonBaseTypes(predBuilder, {leftMLIRValue, rightMLIRValue});

@@ -10,12 +10,12 @@ LogicalOrder::LogicalOrder(vector<BoundOrderByNode> orders)
 }
 
 void LogicalOrder::resolveMLIRValue(MLIRTranslationContext &translationContext, MLIRTranslationContext::ResolverScope &scope) {
-	std::cout << "[LogicalOrder](resolveMLIRValue) :: Resolving MLIR Value for LogicalOrder" << std::endl;
-	std::cerr << "[DEBUG] LogicalOrder: start" << std::endl;
-	std::cout.flush();
+	// std::cout << "[LogicalOrder](resolveMLIRValue) :: Resolving MLIR Value for LogicalOrder" << std::endl;
+	// std::cerr << "[DEBUG] LogicalOrder: start" << std::endl;
+	// std::cout.flush();
 
 	if (children.size() != 1) {
-		std::cout << "[LogicalOrder](resolveMLIRValue) :: Expected exactly one child for LogicalOrder but found " << children.size() << std::endl;
+		// std::cout << "[LogicalOrder](resolveMLIRValue) :: Expected exactly one child for LogicalOrder but found " << children.size() << std::endl;
 		throw InternalException("LogicalOrder operator should have exactly one child");
 	}
 
@@ -67,10 +67,10 @@ void LogicalOrder::resolveMLIRValue(MLIRTranslationContext &translationContext, 
 		childValue,
 		builder.getArrayAttr(orderAttributes)
 	);
-	std::cout << "[LogicalOrder](resolveMLIRValue) :: Resolved MLIR Value for LogicalOrder: " << std::endl;
-	std::cout.flush();
-	this->mlirValue.print(llvm::outs());
-	std::cout << std::endl;
+	// std::cout << "[LogicalOrder](resolveMLIRValue) :: Resolved MLIR Value for LogicalOrder: " << std::endl;
+	// std::cout.flush();
+	// this->mlirValue.print(llvm::outs());
+	// std::cout << std::endl;
 }
 
 vector<ColumnBinding> LogicalOrder::GetColumnBindings() {

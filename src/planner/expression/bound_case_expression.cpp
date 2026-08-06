@@ -79,8 +79,8 @@ static mlir::Value translateCaseChecks(
 mlir::Value BoundCaseExpression::translateExpression(
     MLIRTranslationContext &ctx, mlir::OpBuilder &builder, LogicalOperator *op)
 {
-    std::cout << "[BoundCaseExpression::translateExpression] Translating CASE expression with "
-              << case_checks.size() << " check(s)" << std::endl;
+    // std::cout << "[BoundCaseExpression::translateExpression] Translating CASE expression with "
+    //           << case_checks.size() << " check(s)" << std::endl;
     D_ASSERT(!case_checks.empty());
     return translateCaseChecks(case_checks, else_expr, ctx, builder, op, 0);
 }

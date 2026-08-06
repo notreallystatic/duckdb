@@ -22,21 +22,21 @@ BoundFunctionExpression::BoundFunctionExpression(LogicalType return_type, Scalar
 mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext& translationContext,
 	mlir::OpBuilder& builder, LogicalOperator *op) {
 	auto loc = builder.getUnknownLoc();
-	std::cout << "[BoundFunctionExpression::translateExpression] Translating function :: " << function.name << " children :: " << children.size() << std::endl;
+	// std::cout << "[BoundFunctionExpression::translateExpression] Translating function :: " << function.name << " children :: " << children.size() << std::endl;
 	// to_days(CAST(trunc(CAST('90' AS DOUBLE)) AS INTEGER)))
 	// For now, just add support for the above function.
 
-	std::cout << "[BoundFunctionExpression::translateExpression] Function has " << children.size() << " arguments" << std::endl;
-	for (size_t i = 0; i < children.size(); i++) {
-		std::cout << "[BoundFunctionExpression::translateExpression] Argument " << i << " :: " << children[i]->ToString() << std::endl;
-	}
+	// std::cout << "[BoundFunctionExpression::translateExpression] Function has " << children.size() << " arguments" << std::endl;
+	// for (size_t i = 0; i < children.size(); i++) {
+	// 	std::cout << "[BoundFunctionExpression::translateExpression] Argument " << i << " :: " << children[i]->ToString() << std::endl;
+	// }
 
 	if (function.name == "to_days") {
 		Value childValue;
 		string childValueStr;
 		D_ASSERT(children.size() == 1);
 		bool isChildEvaluated = ExpressionExecutor::TryEvaluateScalar(*translationContext.clientContext, *children[0], childValue);
-		std::cout << "[BoundFunctionExpression::translateExpression] Is child function evaluated? :: " << isChildEvaluated << std::endl;
+		// std::cout << "[BoundFunctionExpression::translateExpression] Is child function evaluated? :: " << isChildEvaluated << std::endl;
 		childValueStr = childValue.ToString();
 		return builder.create<lingodb::compiler::dialect::db::ConstantOp>(
 			loc, lingodb::compiler::dialect::db::IntervalType::get(builder.getContext(), lingodb::compiler::dialect::db::IntervalUnitAttr::daytime),
@@ -46,7 +46,7 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 		string childValueStr;
 		D_ASSERT(children.size() == 1);
 		bool isChildEvaluated = ExpressionExecutor::TryEvaluateScalar(*translationContext.clientContext, *children[0], childValue);
-		std::cout << "[BoundFunctionExpression::translateExpression] Is child function evaluated? :: " << isChildEvaluated << std::endl;
+		// std::cout << "[BoundFunctionExpression::translateExpression] Is child function evaluated? :: " << isChildEvaluated << std::endl;
 		auto yearValue = childValue.GetValueUnsafe<int32_t>();
 		auto monthValue = yearValue * 12; // Convert years to months
 		childValueStr = to_string(monthValue);
@@ -77,7 +77,7 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 				Value dateValue;
 				string dateValueStr;
 				bool isDateEvaluated = ExpressionExecutor::TryEvaluateScalar(*translationContext.clientContext, *children[0], dateValue);
-				std::cout << "[BoundFunctionExpression::translateExpression] Is date child function evaluated? :: " << isDateEvaluated << std::endl;
+				// std::cout << "[BoundFunctionExpression::translateExpression] Is date child function evaluated? :: " << isDateEvaluated << std::endl;
 				dateValueStr = dateValue.ToString();
 				auto dateType = lingodb::compiler::dialect::db::DateType::get(builder.getContext(), lingodb::compiler::dialect::db::DateUnitAttr::day);
 				auto leftVal = builder.create<lingodb::compiler::dialect::db::ConstantOp>(
@@ -187,7 +187,7 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 				Value dateValue;
 				string dateValueStr;
 				bool isDateEvaluated = ExpressionExecutor::TryEvaluateScalar(*translationContext.clientContext, *children[0], dateValue);
-				std::cout << "[BoundFunctionExpression::translateExpression] Is date child function evaluated? :: " << isDateEvaluated << std::endl;
+				// std::cout << "[BoundFunctionExpression::translateExpression] Is date child function evaluated? :: " << isDateEvaluated << std::endl;
 				dateValueStr = dateValue.ToString();
 				auto dateType = lingodb::compiler::dialect::db::DateType::get(builder.getContext(), lingodb::compiler::dialect::db::DateUnitAttr::day);
 				auto leftVal = builder.create<lingodb::compiler::dialect::db::ConstantOp>(
@@ -242,7 +242,7 @@ mlir::Value BoundFunctionExpression::translateExpression(MLIRTranslationContext&
 		auto baseCol = children[0]->translateExpression(translationContext, builder, op);
 		return baseCol;
 	}
-	std::cout << "[BoundFunctionExpression::translateExpression] Unhandled function :: " << function.name << std::endl;
+	// std::cout << "[BoundFunctionExpression::translateExpression] Unhandled function :: " << function.name << std::endl;
 	throw std::runtime_error("Unhandled function in MLIR translation :: " + function.name);
 }
 

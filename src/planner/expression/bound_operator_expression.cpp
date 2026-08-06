@@ -43,7 +43,7 @@ mlir::Value BoundOperatorExpression::translateExpression(MLIRTranslationContext&
 		return predBuilder.create<lingodb::compiler::dialect::db::OneOfOp>(loc, leftVal, rightVals);
 	}
 	}
-	std::cout << "[BoundOperatorExpression::translateExpression] Unhandled operator :: " << ExpressionTypeToString(type) << std::endl;
+	// std::cout << "[BoundOperatorExpression::translateExpression] Unhandled operator :: " << ExpressionTypeToString(type) << std::endl;
 	throw std::runtime_error("Unhandled operator in MLIR translation :: " + ExpressionTypeToString(type));
 }
 

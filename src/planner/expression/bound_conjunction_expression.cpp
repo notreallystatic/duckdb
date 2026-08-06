@@ -31,8 +31,8 @@ mlir::Value BoundConjunctionExpression::translateExpression(MLIRTranslationConte
 		return predBuilder.create<lingodb::compiler::dialect::db::OrOp>(loc, childExprs);
 	}
 	default: {
-		std::cout << "[BoundConjunctionExpression::translateExpression] Unhandled conjunction type :: " <<
-			ExpressionTypeToString(type) << std::endl;
+		// std::cout << "[BoundConjunctionExpression::translateExpression] Unhandled conjunction type :: " <<
+		// 	ExpressionTypeToString(type) << std::endl;
 		throw std::runtime_error("Unhandled conjunction type");
 	}
 	}

@@ -231,7 +231,6 @@ string LogicalAggregate::GetName() const {
 }
 
 relalg::AggrFunc getAggrFunc(const string& functionName) {
-	std::cout << "[LogicalAggregate](getAggrFunc) :: functionName :: " << functionName << std::endl;
 	return llvm::StringSwitch<relalg::AggrFunc>(functionName)
 		.Case("sum", relalg::AggrFunc::sum)
 		.Case("sum_no_overflow", relalg::AggrFunc::sum)
@@ -245,13 +244,13 @@ relalg::AggrFunc getAggrFunc(const string& functionName) {
 MLIRAttributeInfo& LogicalAggregate::resolveColumnBindingToAttributeInfo(ColumnBinding& binding) {
 	if (binding.table_index == aggregate_index) {
 		if (binding.column_index >= expressions.size()) {
-			std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Invalid column index " << binding.column_index << " for aggregate_index " << aggregate_index << std::endl;
+			// std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Invalid column index " << binding.column_index << " for aggregate_index " << aggregate_index << std::endl;
 			throw std::runtime_error("Invalid column index " + std::to_string(binding.column_index) + " for aggregate_index " + std::to_string(aggregate_index));
 		}
 		return mlirAttributeInfos[binding.column_index];
 	} else if (binding.table_index == group_index) {
 		if (binding.column_index >= groups.size()) {
-			std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Invalid column index " << binding.column_index << " for group_index " << group_index << std::endl;
+			// std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Invalid column index " << binding.column_index << " for group_index " << group_index << std::endl;
 			throw std::runtime_error("Invalid column index " + std::to_string(binding.column_index) + " for group_index " + std::to_string(group_index));
 		}
 		// If resolveMLIRValue already populated the attr info (covers both column-refs and functions), use it
@@ -262,16 +261,16 @@ MLIRAttributeInfo& LogicalAggregate::resolveColumnBindingToAttributeInfo(ColumnB
 		// Fallback for column refs when resolveMLIRValue hasn't run yet
 		auto expr = groups[binding.column_index].get();
 		if (expr->expression_class != ExpressionClass::BOUND_COLUMN_REF) {
-			std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Expected group expression to be a BoundColumnRefExpression but found expression of class " << ExpressionClassToString(expr->expression_class) << std::endl;
+			// std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Expected group expression to be a BoundColumnRefExpression but found expression of class " << ExpressionClassToString(expr->expression_class) << std::endl;
 			throw std::runtime_error("Expected group expression to be a BoundColumnRefExpression but found expression of class " + ExpressionClassToString(expr->expression_class));
 		}
 		auto exprColBinding = expr->Cast<BoundColumnRefExpression>().binding;
-		std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Resolving group column binding " << exprColBinding.ToString() << " for group expression at index " << binding.column_index << std::endl;
+		// std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Resolving group column binding " << exprColBinding.ToString() << " for group expression at index " << binding.column_index << std::endl;
 		return this->children[0]->resolveColumnBindingToAttributeInfo(exprColBinding);
 	}
 	else {
 		// Try to resolve the binding in the child operator(s)
-		std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Resolving column binding " << binding.ToString() << " in child operator(s)" << std::endl;
+		// std::cout << "[LogicalAggregate](resolveColumnBindingToAttributeInfo) :: Resolving column binding " << binding.ToString() << " in child operator(s)" << std::endl;
 		return this->children[0]->resolveColumnBindingToAttributeInfo(binding);
 	}
 }
@@ -339,11 +338,11 @@ LIMIT 10;
 └───────────────────────────┘
  */
 void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationContext, MLIRTranslationContext::ResolverScope &scope) {
-	std::cout << "[LogicalAggregate](resolveMLIRValue) :: Resolving MLIR Value for LogicalAggregate" << std::endl;
-	std::cout.flush();
+	// std::cout << "[LogicalAggregate](resolveMLIRValue) :: Resolving MLIR Value for LogicalAggregate" << std::endl;
+	// std::cout.flush();
 
 	if (children.size() != 1) {
-		std::cout << "[LogicalAggregate](resolveMLIRValue) :: Expected exactly one child for LogicalAggregate but found " << children.size() << std::endl;
+		// std::cout << "[LogicalAggregate](resolveMLIRValue) :: Expected exactly one child for LogicalAggregate but found " << children.size() << std::endl;
 		throw std::runtime_error("Expected exactly one child for LogicalAggregate but found " + std::to_string(children.size()));
 	}
 
@@ -383,7 +382,7 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 				if (child->expression_class == ExpressionClass::BOUND_COLUMN_REF) {
 					auto& colRefExpr = child->Cast<BoundColumnRefExpression>();
 					auto columnBinding = colRefExpr.binding;
-					std::cout << "[LogicalAggregate](resolveMLIRValue) :: Resolving column binding " << columnBinding.ToString() << " for aggregate expression at index " << i << std::endl;
+					// std::cout << "[LogicalAggregate](resolveMLIRValue) :: Resolving column binding " << columnBinding.ToString() << " for aggregate expression at index " << i << std::endl;
 					auto columnAttrInfo = resolveColumnBindingToAttributeInfo(columnBinding);
 					resolvedColumnAttrs[i] = columnAttrInfo.column;
 				}
@@ -393,11 +392,11 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 			}
 		}
 	}
-	std::cout << "[LogicalAggregate](resolveMLIRValue) :: isMapOperationRequired :: " << isMapOperationRequired << std::endl;
+	// std::cout << "[LogicalAggregate](resolveMLIRValue) :: isMapOperationRequired :: " << isMapOperationRequired << std::endl;
 
 	if (isMapOperationRequired) {
-		std::cout << "[LogicalAggregate](resolveMLIRValue) :: Map operation is required to resolve expressions" << std::endl;
-		std::cout.flush();
+		// std::cout << "[LogicalAggregate](resolveMLIRValue) :: Map operation is required to resolve expressions" << std::endl;
+		// std::cout.flush();
 		auto* block = new mlir::Block();
 		static size_t mapOpId = 0;
 		static size_t mapArgId = 0;
@@ -416,12 +415,12 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 			auto& expr = expressions[i];
 
 			if (expr->expression_class != ExpressionClass::BOUND_AGGREGATE) {
-				std::cout << "[LogicalAggregate](resolveMLIRValue) :: Currently only supporting BOUND_AGGREGATE expressions but found expression of class " << ExpressionClassToString(expr->expression_class) << std::endl;
+				// std::cout << "[LogicalAggregate](resolveMLIRValue) :: Currently only supporting BOUND_AGGREGATE expressions but found expression of class " << ExpressionClassToString(expr->expression_class) << std::endl;
 				continue;
 			}
 			auto& bound_agg = expr->Cast<BoundAggregateExpression>();
 			if (bound_agg.children.size() != 1) {
-				std::cout << "[LogicalAggregate](resolveMLIRValue) :: Currently only supporting BOUND_AGGREGATE expressions with exactly one child but found " << bound_agg.children.size() << " children" << std::endl;
+				// std::cout << "[LogicalAggregate](resolveMLIRValue) :: Currently only supporting BOUND_AGGREGATE expressions with exactly one child but found " << bound_agg.children.size() << " children" << std::endl;
 				continue;
 			}
 			auto childExpr = bound_agg.children[0].get();
@@ -442,10 +441,10 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 		childValue = mapOp.getResult();
 	}
 
-	std::cout << "[LogicalAggregate](resolveMLIRValue) :: child value so far " << std::endl;
-	childValue.print(llvm::outs());
-	std::cout << std::endl;
-	std::cout << "[LogicalAggregate](resolveMLIRValue) :: Creating AggregationOp" << std::endl;
+	// std::cout << "[LogicalAggregate](resolveMLIRValue) :: child value so far " << std::endl;
+	// childValue.print(llvm::outs());
+	// std::cout << std::endl;
+	// std::cout << "[LogicalAggregate](resolveMLIRValue) :: Creating AggregationOp" << std::endl;
 
 	// Pre-compute any BOUND_FUNCTION group-by expressions via a map op, and
 	// populate mlirGroupAttributeInfos (parallel to groups[]).
@@ -518,7 +517,7 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 			relalg::AggrFunc aggrFunc = getAggrFunc(bound_agg.function.name);
 			attrDef.getColumn().type = computeAggrResultType(builder, aggrFunc, columnDef->type, groupByAttrs.empty());
 		} else {
-			std::cout << "[LogicalAggregate](resolveMLIRValue) :: No resolved column attribute found for expression at index " << i << std::endl;
+			// std::cout << "[LogicalAggregate](resolveMLIRValue) :: No resolved column attribute found for expression at index " << i << std::endl;
 			throw std::runtime_error("No resolved column attribute found for expression at index " + std::to_string(i));
 		}
 		aggrAttrs.push_back(attrDef);
@@ -543,7 +542,7 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 	for (int i = 0; i < expressions.size(); ++i) {
 		auto &expr = expressions[i];
 		if (expr->expression_class != ExpressionClass::BOUND_AGGREGATE) {
-			std::cout << "[LogicalAggregate](resolveMLIRValue) :: Skipping expression of class " << ExpressionClassToString(expr->expression_class) << " since only BOUND_AGGREGATE expressions are supported" << std::endl;
+			// std::cout << "[LogicalAggregate](resolveMLIRValue) :: Skipping expression of class " << ExpressionClassToString(expr->expression_class) << " since only BOUND_AGGREGATE expressions are supported" << std::endl;
 			continue;
 		}
 		auto &bound_agg = expr->Cast<BoundAggregateExpression>();
@@ -584,10 +583,10 @@ void LogicalAggregate::resolveMLIRValue(MLIRTranslationContext &translationConte
 	aggrOp.getAggrFunc().push_back(aggrBlock);
 	this->mlirValue = aggrOp.getResult();
 
-	std::cout << "[LogicalAggregate](resolveMLIRValue) :: Created AggregationOp with name " << aggrOpName << std::endl;
-	std::cout.flush();
-	this->mlirValue.print(llvm::outs());
-	std::cout << std::endl;
+	// std::cout << "[LogicalAggregate](resolveMLIRValue) :: Created AggregationOp with name " << aggrOpName << std::endl;
+	// std::cout.flush();
+	// this->mlirValue.print(llvm::outs());
+	// std::cout << std::endl;
 }
 
 } // namespace duckdb

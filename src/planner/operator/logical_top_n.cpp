@@ -29,11 +29,11 @@ idx_t LogicalTopN::EstimateCardinality(ClientContext &context) {
 }
 
 void LogicalTopN::resolveMLIRValue(MLIRTranslationContext& translationContext, MLIRTranslationContext::ResolverScope& scope) {
-	std::cout << "[LogicalTopN](resolveMLIRValue) :: " << LogicalOperatorToString(type) << std::endl;
-	std::cout.flush();
+	// std::cout << "[LogicalTopN](resolveMLIRValue) :: " << LogicalOperatorToString(type) << std::endl;
+	// std::cout.flush();
 
 	if (children.size() != 1) {
-		std::cout << "[LogicalTopN](resolveMLIRValue) :: Expected exactly one child but found " << children.size() << std::endl;
+		// std::cout << "[LogicalTopN](resolveMLIRValue) :: Expected exactly one child but found " << children.size() << std::endl;
 		throw InternalException("LogicalTopN operator should have exactly one child");
 	}
 
@@ -70,10 +70,10 @@ void LogicalTopN::resolveMLIRValue(MLIRTranslationContext& translationContext, M
 	    childValue,
 	    builder.getArrayAttr(orderAttributes));
 
-	std::cout << "[LogicalTopN](resolveMLIRValue) :: Resolved MLIR Value for LogicalTopN: " << std::endl;
-	std::cout.flush();
-	this->mlirValue.print(llvm::outs());
-	std::cout << std::endl;
+	// std::cout << "[LogicalTopN](resolveMLIRValue) :: Resolved MLIR Value for LogicalTopN: " << std::endl;
+	// std::cout.flush();
+	// this->mlirValue.print(llvm::outs());
+	// std::cout << std::endl;
 }
 
 

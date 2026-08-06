@@ -42,8 +42,8 @@ MLIRAttributeInfo& LogicalCTERef::resolveColumnBindingToAttributeInfo(ColumnBind
 }
 
 void LogicalCTERef::resolveMLIRValue(MLIRTranslationContext& context, MLIRTranslationContext::ResolverScope& scope) {
-	std::cout << "[LogicalCTERef](resolveMLIRValue) :: cte_index=" << cte_index
-	          << " table_index=" << table_index << std::endl;
+	// std::cout << "[LogicalCTERef](resolveMLIRValue) :: cte_index=" << cte_index
+	          // << " table_index=" << table_index << std::endl;
 
 	auto it = context.cteValues.find(cte_index);
 	if (it == context.cteValues.end()) {
@@ -86,8 +86,8 @@ void LogicalCTERef::resolveMLIRValue(MLIRTranslationContext& context, MLIRTransl
 
 		mlirAttributeInfos.push_back(MLIRAttributeInfo{scopeName, colName, &newDef.getColumn()});
 
-		std::cout << "[LogicalCTERef](resolveMLIRValue) :: Renamed col[" << i << "]"
-		          << " -> " << scopeName << "." << colName << std::endl;
+		// std::cout << "[LogicalCTERef](resolveMLIRValue) :: Renamed col[" << i << "]"
+		          // << " -> " << scopeName << "." << colName << std::endl;
 	}
 
 	auto renamingOp = builder.create<relalg::RenamingOp>(
@@ -97,8 +97,8 @@ void LogicalCTERef::resolveMLIRValue(MLIRTranslationContext& context, MLIRTransl
 	    builder.getArrayAttr(renamingCols));
 
 	this->mlirValue = renamingOp.getResult();
-	std::cout << "[LogicalCTERef](resolveMLIRValue) :: Created relalg.renaming as @"
-	          << scopeName << std::endl;
+	// std::cout << "[LogicalCTERef](resolveMLIRValue) :: Created relalg.renaming as @"
+	          // << scopeName << std::endl;
 }
 
 } // namespace duckdb

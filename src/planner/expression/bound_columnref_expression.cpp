@@ -18,14 +18,14 @@ BoundColumnRefExpression::BoundColumnRefExpression(string alias_p, LogicalType t
 mlir::Value BoundColumnRefExpression::translateExpression(MLIRTranslationContext &translationContext, mlir::OpBuilder &predBuilder, LogicalOperator *op) {
 	auto column_name = this->ToString();
 	auto binding = this->binding;
-	std::cout << "[BoundColumnRefExpression](translateExpression) :: column name :: " << column_name << " binding :: " << binding.ToString() << std::endl;
+	// std::cout << "[BoundColumnRefExpression](translateExpression) :: column name :: " << column_name << " binding :: " << binding.ToString() << std::endl;
 
 	// Check if this column binding is the mark column from a MARK (EXISTS) join.
 	// If so, build the right side inside the predicate block and emit relalg.exists.
 	auto existsIt = translationContext.deferredExistsCallbacks.find(binding);
 	if (existsIt != translationContext.deferredExistsCallbacks.end()) {
-		std::cout << "[BoundColumnRefExpression](translateExpression) :: Found deferred EXISTS callback for binding "
-		          << binding.ToString() << ", emitting relalg.exists" << std::endl;
+		// std::cout << "[BoundColumnRefExpression](translateExpression) :: Found deferred EXISTS callback for binding "
+		//           << binding.ToString() << ", emitting relalg.exists" << std::endl;
 		auto rightValue = existsIt->second(predBuilder);
 		translationContext.deferredExistsCallbacks.erase(existsIt);
 		return predBuilder.create<lingodb::compiler::dialect::relalg::ExistsOp>(
@@ -36,8 +36,8 @@ mlir::Value BoundColumnRefExpression::translateExpression(MLIRTranslationContext
 	// builds the right child inside the predicate block, then emits relalg.getscalar.
 	auto scalarCbIt = translationContext.deferredScalarCallbacks.find(binding);
 	if (scalarCbIt != translationContext.deferredScalarCallbacks.end()) {
-		std::cout << "[BoundColumnRefExpression](translateExpression) :: Found deferred scalar callback for binding "
-		          << binding.ToString() << ", invoking callback to build subquery inside predicate block" << std::endl;
+		// std::cout << "[BoundColumnRefExpression](translateExpression) :: Found deferred scalar callback for binding "
+		//           << binding.ToString() << ", invoking callback to build subquery inside predicate block" << std::endl;
 		auto result = scalarCbIt->second(predBuilder);
 		translationContext.deferredScalarCallbacks.erase(scalarCbIt);
 		return result;
@@ -47,7 +47,7 @@ mlir::Value BoundColumnRefExpression::translateExpression(MLIRTranslationContext
 	// If so, emit relalg.getscalar here inside the current predicate block
 	auto scalarIt = translationContext.deferredScalarSubqueries.find(binding);
 	if (scalarIt != translationContext.deferredScalarSubqueries.end()) {
-		std::cout << "[BoundColumnRefExpression](translateExpression) :: Found deferred scalar subquery for binding " << binding.ToString() << ", emitting relalg.getscalar" << std::endl;
+		// std::cout << "[BoundColumnRefExpression](translateExpression) :: Found deferred scalar subquery for binding " << binding.ToString() << ", emitting relalg.getscalar" << std::endl;
 		auto &info = scalarIt->second;
 
 		auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
@@ -78,7 +78,7 @@ mlir::Value BoundColumnRefExpression::translateExpression(MLIRTranslationContext
 	        ->getColumnManager();
 	auto loc = predBuilder.getUnknownLoc();
 	if (this->depth > 0) {
-		std::cout << "[BoundColumnRefExpression](translateExpression) :: Column reference has depth " << depth << ", looking up in parent column bindings" << std::endl;
+		// std::cout << "[BoundColumnRefExpression](translateExpression) :: Column reference has depth " << depth << ", looking up in parent column bindings" << std::endl;
 		if (op->parentColumnBindings.empty()) {
 			throw std::runtime_error("No parent column bindings found for column reference with binding " + binding.ToString());
 		}
@@ -87,7 +87,7 @@ mlir::Value BoundColumnRefExpression::translateExpression(MLIRTranslationContext
 			throw std::runtime_error("Column reference with binding " + binding.ToString() + " has depth " + to_string(this->depth) + " but only " + to_string(op->parentColumnBindings.size()) + " parent column bindings available");
 		}
 		auto& columnAttr = op->parentColumnBindings[depthIndex]->resolveColumnBindingToAttributeInfo(binding);
-		std::cout << "[BoundColumnRefExpression](translateExpression) :: Resolved column reference with binding " << binding.ToString() << " to parent attribute " << columnAttr.col_name << std::endl;
+		// std::cout << "[BoundColumnRefExpression](translateExpression) :: Resolved column reference with binding " << binding.ToString() << " to parent attribute " << columnAttr.col_name << std::endl;
 		return predBuilder.create<lingodb::compiler::dialect::tuples::GetColumnOp>(
 			loc, columnAttr.column->type, attrManager.createRef(columnAttr.column), translationContext.getCurrentTuple());
 	}

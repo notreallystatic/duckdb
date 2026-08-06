@@ -24,8 +24,8 @@ MLIRAttributeInfo& LogicalMaterializedCTE::resolveColumnBindingToAttributeInfo(C
 }
 
 void LogicalMaterializedCTE::resolveMLIRValue(MLIRTranslationContext& context, MLIRTranslationContext::ResolverScope& scope) {
-	std::cout << "[LogicalMaterializedCTE](resolveMLIRValue) :: CTE name=" << ctename
-	          << " table_index=" << table_index << std::endl;
+	// std::cout << "[LogicalMaterializedCTE](resolveMLIRValue) :: CTE name=" << ctename
+	          // << " table_index=" << table_index << std::endl;
 
 	// Resolve the CTE body (child[0]: PROJECTION → AGGREGATE → FILTER → SCAN).
 	children[0]->parentColumnBindings = this->parentColumnBindings;
@@ -41,8 +41,8 @@ void LogicalMaterializedCTE::resolveMLIRValue(MLIRTranslationContext& context, M
 		bodyInfo.columns.push_back(children[0]->resolveColumnBindingToAttributeInfo(binding).column);
 	}
 	context.cteValues[table_index] = std::move(bodyInfo);
-	std::cout << "[LogicalMaterializedCTE](resolveMLIRValue) :: Stored CTE body with "
-	          << bodyBindings.size() << " column(s)" << std::endl;
+	// std::cout << "[LogicalMaterializedCTE](resolveMLIRValue) :: Stored CTE body with "
+	          // << bodyBindings.size() << " column(s)" << std::endl;
 
 	// Resolve the main query (child[1]) — it contains CTE_REF nodes that read cteValues.
 	children[1]->parentColumnBindings = this->parentColumnBindings;

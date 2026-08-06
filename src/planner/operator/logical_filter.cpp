@@ -121,13 +121,13 @@ void LogicalFilter::resolveMLIRValue(MLIRTranslationContext &translationContext,
 	}
 
 	if (children.size() != 1) {
-		std::cout << "LogicalFilter should have exactly one child, but found :: " << children.size() << std::endl;
+		// std::cout << "LogicalFilter should have exactly one child, but found :: " << children.size() << std::endl;
 		return;
 	}
 	auto inputValue = children[0]->getMLIRValue();
-	std::cout << "LogicalFilter :: Resolving MLIR Value for filter with inputValue :: " << std::endl;
-	inputValue.print(llvm::outs());
-	std::cout << std::endl;
+	// std::cout << "LogicalFilter :: Resolving MLIR Value for filter with inputValue :: " << std::endl;
+	// inputValue.print(llvm::outs());
+	// std::cout << std::endl;
 
 	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 	auto &builder = mlirContainerInstance.getBuilder();
@@ -162,9 +162,9 @@ void LogicalFilter::resolveMLIRValue(MLIRTranslationContext &translationContext,
 
 	this->mlirValue = selectionOp.getResult();
 
-	std::cout << "LogicalFilter MLIR Value :: " << std::endl;
-	std::cerr << "[DEBUG] LogicalFilter: done" << std::endl;
-	std::cout << std::endl;
+	// std::cout << "LogicalFilter MLIR Value :: " << std::endl;
+	// std::cerr << "[DEBUG] LogicalFilter: done" << std::endl;
+	// std::cout << std::endl;
 }
 
 } // namespace duckdb

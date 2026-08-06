@@ -55,7 +55,7 @@ MLIRAttributeInfo &LogicalAnyJoin::resolveColumnBindingToAttributeInfo(ColumnBin
 
 void LogicalAnyJoin::resolveMLIRValue(MLIRTranslationContext &context,
                                        MLIRTranslationContext::ResolverScope &scope) {
-	std::cout << "[LogicalAnyJoin](resolveMLIRValue) :: join_type=" << JoinTypeToString(join_type) << std::endl;
+	// std::cout << "[LogicalAnyJoin](resolveMLIRValue) :: join_type=" << JoinTypeToString(join_type) << std::endl;
 
 	if (join_type != JoinType::LEFT) {
 		throw NotImplementedException(
@@ -124,8 +124,8 @@ void LogicalAnyJoin::resolveMLIRValue(MLIRTranslationContext &context,
 
 		mlirAttributeInfos.push_back(MLIRAttributeInfo {ojName, attrName, &newDef.getColumn()});
 
-		std::cout << "[LogicalAnyJoin] Mapped " << rightAttrInfo.table_name << "." << attrName
-		          << " -> " << ojName << "." << attrName << " (nullable)" << std::endl;
+		// std::cout << "[LogicalAnyJoin] Mapped " << rightAttrInfo.table_name << "." << attrName
+		          // << " -> " << ojName << "." << attrName << " (nullable)" << std::endl;
 	}
 
 	auto mapping = builder.getArrayAttr(mappingAttrs);
@@ -136,8 +136,8 @@ void LogicalAnyJoin::resolveMLIRValue(MLIRTranslationContext &context,
 	outerJoin.getPredicate().push_back(predBlock);
 
 	this->mlirValue = outerJoin.getResult();
-	std::cout << "[LogicalAnyJoin] Created OuterJoinOp with " << rightBindings.size()
-	          << " nullable mapped column(s)" << std::endl;
+	// std::cout << "[LogicalAnyJoin] Created OuterJoinOp with " << rightBindings.size()
+	          // << " nullable mapped column(s)" << std::endl;
 }
 
 } // namespace duckdb

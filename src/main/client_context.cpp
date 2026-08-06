@@ -411,15 +411,15 @@ static bool IsExplainAnalyze(SQLStatement *statement) {
 }
 
 void ClientContext::compileQuery(LogicalOperator* logical_plan) {
-	try {
-		logical_plan->Walk(0);
-	} catch (std::exception &ex) {
-		std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
-	}
+	// try {
+	// 	logical_plan->Walk(0);
+	// } catch (std::exception &ex) {
+	// 	std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
+	// }
 
 
 	try {
-		std::cout << "[ClientContext](CreatePreparedStatementInternal) :: Starting to resolve MLIR values for the logical plan\n";
+		// std::cout << "[ClientContext](CreatePreparedStatementInternal) :: Starting to resolve MLIR values for the logical plan\n";
 		lingodb::execution::MLIRContainer::reset();
 		auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 		auto moduleOp = mlirContainerInstance.getModuleOp();
@@ -440,13 +440,13 @@ void ClientContext::compileQuery(LogicalOperator* logical_plan) {
 					translationContext.clientContext = this;
 					auto scope = translationContext.createResolverScope();
 					logical_plan->resolveMLIRValue(translationContext, scope);
-					std::cerr << "[DEBUG] client_context: resolveMLIRValue done" << std::endl;
+					// std::cerr << "[DEBUG] client_context: resolveMLIRValue done" << std::endl;
 
 					auto materializeValue = logical_plan->getMLIRValue();
-					std::cerr << "[DEBUG] client_context: getMLIRValue done" << std::endl;
+					// std::cerr << "[DEBUG] client_context: getMLIRValue done" << std::endl;
 					LogicalOperator::setMaterializeInput(materializeValue);
 
-					std::cout << "[ClientContext](CreatePreparedStatementInternal) :: Finished resolving MLIR values for the logical plan\n";
+					// std::cout << "[ClientContext](CreatePreparedStatementInternal) :: Finished resolving MLIR values for the logical plan\n";
 					logical_plan->materializeMLIRValue(translationContext, scope);
 				}
 			}
@@ -455,8 +455,8 @@ void ClientContext::compileQuery(LogicalOperator* logical_plan) {
 		}
 		mlir::OpPrintingFlags flags;
    		flags.assumeVerified();
-   		moduleOp.print(llvm::outs(), flags);
-		std::cout << "\n" << "[ClientContext](CreatePreparedStatementInternal) :: Finished printing the MLIR module\n";
+   		// moduleOp.print(llvm::outs(), flags);
+		// std::cout << "\n" << "[ClientContext](CreatePreparedStatementInternal) :: Finished printing the MLIR module\n";
 	} catch (std::exception &ex) {
 		std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
 	}
@@ -502,7 +502,7 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 	// Mode 1: compilation was done inside CreatePlan on the unoptimized plan — skip the optimizer.
 	if (query_mode == 1 && statement_type == StatementType::SELECT_STATEMENT) {
 		profiler.StartPhase(MetricsType::COMPILE_AND_RUN_QUERIES);
-		std::cout << "[ClientContext] (CreatePreparedStatementInternal) running compiled unoptimized plan\n";
+		// std::cout << "[ClientContext] (CreatePreparedStatementInternal) running compiled unoptimized plan\n";
 		profiler.EndPhase();
 		runMLIR();
 		result->is_compiled_query = true;
@@ -528,7 +528,7 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 	if (query_mode == 2) {
 		compileQuery(logical_plan.get());
 		profiler.StartPhase(MetricsType::COMPILE_AND_RUN_QUERIES);
-		std::cout << "[ClientContext] (CreatePreparedStatementInternal) running compiled optimized plan\n";
+		// std::cout << "[ClientContext] (CreatePreparedStatementInternal) running compiled optimized plan\n";
 		profiler.EndPhase();
 		if (statement_type == StatementType::SELECT_STATEMENT) {
 			runMLIR();

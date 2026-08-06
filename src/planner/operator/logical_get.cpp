@@ -49,7 +49,7 @@ LogicalGet::LogicalGet() : LogicalOperator(LogicalOperatorType::LOGICAL_GET) {
 MLIRAttributeInfo& LogicalGet::resolveColumnBindingToAttributeInfo(ColumnBinding& binding) {
 	auto table_index = binding.table_index;
 	if (table_index != this->table_index) {
-		std::cout << "[LogicalGet](resolveColumnBindingToAttributeInfo) :: Table index " << table_index << " does not match LogicalGet's table index " << this->table_index << std::endl;
+		// std::cout << "[LogicalGet](resolveColumnBindingToAttributeInfo) :: Table index " << table_index << " does not match LogicalGet's table index " << this->table_index << std::endl;
 		throw std::runtime_error("Table index does not match LogicalGet's table index");
 	}
 	auto& col_ids = GetColumnIds();
@@ -469,11 +469,11 @@ string LogicalGet::GetName() const {
  * - Some of the i32 types are being converted to i64, need to see if that will cause an issue or not.
  */
 void LogicalGet::resolveMLIRValue(MLIRTranslationContext &translationContext, MLIRTranslationContext::ResolverScope &scope) {
-	std::cout << "[LogicalGet](resolveMLIRValue) :: " << GetName() << std::endl;
+	// std::cout << "[LogicalGet](resolveMLIRValue) :: " << GetName() << std::endl;
 	const string unique_table_name = getTableName() + "_" + std::to_string(table_index);
 	const string source_table_name = getTableName();
 
-	std::cout << "[LogicalGet](resolveMLIRValue) :: Resolving MLIR value for table: " << source_table_name << " table_index :: " << table_index << std::endl;
+	// std::cout << "[LogicalGet](resolveMLIRValue) :: Resolving MLIR value for table: " << source_table_name << " table_index :: " << table_index << std::endl;
 
 	auto &mlirContainerInstance = lingodb::execution::MLIRContainer::getInstance();
 	D_ASSERT(mlirContainerInstance.getContextPtr() != nullptr);
@@ -591,10 +591,10 @@ void LogicalGet::resolveMLIRValue(MLIRTranslationContext &translationContext, ML
 	    lingodb::compiler::dialect::tuples::TupleStreamType::get(builder.getContext()), source_table_name,
 	    builder.getDictionaryAttr(columns));
 
-	std::cout << "[LogicalGet](resolveMLIRValue) BaseTableOp MLIR Value :: ";
-	std::cout.flush();
-	baseTableOp.getResult().print(llvm::outs());
-	std::cout << std::endl;
+	// std::cout << "[LogicalGet](resolveMLIRValue) BaseTableOp MLIR Value :: ";
+	// std::cout.flush();
+	// baseTableOp.getResult().print(llvm::outs());
+	// std::cout << std::endl;
 
 	if (table_filters.filters.empty()) {
 		this->mlirValue = baseTableOp.getResult();
@@ -630,7 +630,7 @@ void LogicalGet::resolveMLIRValue(MLIRTranslationContext &translationContext, ML
 		    names[filter_col_idx], returned_types[filter_col_idx],
 		    ColumnBinding(table_index, binding_col_idx));
 		auto filterExpr = filter->ToExpression(*colExpr);
-		std::cout << "[LogicalGet](resolveMLIRValue) Table filter expr :: " << filterExpr->ToString() << std::endl;
+		// std::cout << "[LogicalGet](resolveMLIRValue) Table filter expr :: " << filterExpr->ToString() << std::endl;
 		filterExprs.push_back(filterExpr->translateExpression(translationContext, predBuilder, this));
 	}
 
@@ -650,10 +650,10 @@ void LogicalGet::resolveMLIRValue(MLIRTranslationContext &translationContext, ML
 
 	this->mlirValue = selectionOp.getResult();
 
-	std::cout << "[LogicalGet](resolveMLIRValue) SelectionOp (with table filters) MLIR Value :: ";
-	std::cout.flush();
-	this->mlirValue.print(llvm::outs());
-	std::cout << std::endl;
+	// std::cout << "[LogicalGet](resolveMLIRValue) SelectionOp (with table filters) MLIR Value :: ";
+	// std::cout.flush();
+	// this->mlirValue.print(llvm::outs());
+	// std::cout << std::endl;
 }
 
 string LogicalGet::resolveTableIndex(idx_t table_index) {

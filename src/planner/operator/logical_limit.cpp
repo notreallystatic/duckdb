@@ -36,11 +36,11 @@ void LogicalLimit::ResolveTypes() {
 }
 
 void LogicalLimit::resolveMLIRValue(MLIRTranslationContext& translationContext, MLIRTranslationContext::ResolverScope& scope) {
-	std::cout << "[LogicalLimit](resolveMLIRValue) :: " << LogicalOperatorToString(type) << std::endl;
-	std::cout.flush();
+	// std::cout << "[LogicalLimit](resolveMLIRValue) :: " << LogicalOperatorToString(type) << std::endl;
+	// std::cout.flush();
 
 	if (children.size() != 1) {
-		std::cout << "[LogicalOrder](resolveMLIRValue) :: Expected exactly one child for LogicalOrder but found " << children.size() << std::endl;
+		// std::cout << "[LogicalOrder](resolveMLIRValue) :: Expected exactly one child for LogicalOrder but found " << children.size() << std::endl;
 		throw InternalException("LogicalOrder operator should have exactly one child");
 	}
 
@@ -59,10 +59,10 @@ void LogicalLimit::resolveMLIRValue(MLIRTranslationContext& translationContext, 
 		childValue
 	);
 	this->mlirValue = limitValue;
-	std::cout << "[LogicalLimit](resolveMLIRValue) :: Resolved MLIR Value for LogicalLimit: " << std::endl;
-	std::cout.flush();
-	this->mlirValue.print(llvm::outs());
-	std::cout << std::endl;
+	// std::cout << "[LogicalLimit](resolveMLIRValue) :: Resolved MLIR Value for LogicalLimit: " << std::endl;
+	// std::cout.flush();
+	// this->mlirValue.print(llvm::outs());
+	// std::cout << std::endl;
 }
 
 } // namespace duckdb
