@@ -1,4 +1,5 @@
 #include "duckdb/main/client_context.hpp"
+#include <chrono> // attribution timers for the compiled (MLIR) path
 #include "duckdb/catalog/catalog_entry/scalar_function_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_entry/table_catalog_entry.hpp"
 #include "duckdb/catalog/catalog_search_path.hpp"
@@ -455,8 +456,8 @@ void ClientContext::compileQuery(LogicalOperator* logical_plan) {
 		}
 		mlir::OpPrintingFlags flags;
    		flags.assumeVerified();
-   		// moduleOp.print(llvm::outs(), flags);
-		// std::cout << "\n" << "[ClientContext](CreatePreparedStatementInternal) :: Finished printing the MLIR module\n";
+   		moduleOp.print(llvm::outs(), flags);
+		std::cout << "\n" << "[ClientContext](CreatePreparedStatementInternal) :: Finished printing the MLIR module\n";
 	} catch (std::exception &ex) {
 		std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
 	}
@@ -484,7 +485,15 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 		}
 	}
 
+	auto _attrib_plan_start = std::chrono::steady_clock::now();
 	logical_planner.CreatePlan(std::move(statement));
+	if (query_mode == 1 || query_mode == 2) {
+		// For mode 1 the MLIR module is built inside CreatePlan (on the unoptimized plan),
+		// so this figure includes the DuckDB->MLIR translation; for mode 2 it is just the
+		// DuckDB planner (the MLIR build is timed separately below as mlir_build).
+		auto _dt = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - _attrib_plan_start).count();
+		std::cerr << " [attrib] duckdb_plan" << (query_mode == 1 ? "+mlir_build" : "") << ": " << _dt << " [ms]" << std::endl;
+	}
 	D_ASSERT(logical_planner.plan || !logical_planner.properties.bound_all_parameters);
 	profiler.EndPhase();
 
@@ -504,7 +513,14 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 		profiler.StartPhase(MetricsType::COMPILE_AND_RUN_QUERIES);
 		// std::cout << "[ClientContext] (CreatePreparedStatementInternal) running compiled unoptimized plan\n";
 		profiler.EndPhase();
+		// runmlir_total is the LingoDB-side wall (compile + execute + executer setup +
+		// result materialization). Subtract the "compilation:/execution:" line runMLIR
+		// prints to get the residual (setup/scheduling/readback) inside runMLIR.
+		auto _attrib_run_start = std::chrono::steady_clock::now();
 		runMLIR();
+		std::cerr << " [attrib] runmlir_total: "
+		          << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - _attrib_run_start).count()
+		          << " [ms]" << std::endl;
 		result->is_compiled_query = true;
 		return result;
 	}
@@ -526,12 +542,24 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 
 	// Mode 2: compile the optimized plan.
 	if (query_mode == 2) {
+		// mlir_build: the DuckDB->MLIR translation (resolveMLIRValue + materialize) of the
+		// optimized plan.
+		auto _attrib_build_start = std::chrono::steady_clock::now();
 		compileQuery(logical_plan.get());
+		std::cerr << " [attrib] mlir_build: "
+		          << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - _attrib_build_start).count()
+		          << " [ms]" << std::endl;
 		profiler.StartPhase(MetricsType::COMPILE_AND_RUN_QUERIES);
 		// std::cout << "[ClientContext] (CreatePreparedStatementInternal) running compiled optimized plan\n";
 		profiler.EndPhase();
 		if (statement_type == StatementType::SELECT_STATEMENT) {
+			// See mode 1 above: runmlir_total minus the compilation:/execution: line is the
+			// residual inside runMLIR (executer setup + scheduling + result readback).
+			auto _attrib_run_start = std::chrono::steady_clock::now();
 			runMLIR();
+			std::cerr << " [attrib] runmlir_total: "
+			          << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - _attrib_run_start).count()
+			          << " [ms]" << std::endl;
 			result->is_compiled_query = true;
 			return result;
 		}

@@ -49,15 +49,29 @@ void runMLIR() {
 
 	// moduleOp->dump();
 
-	bool eagerLoading = std::getenv("LINGODB_BACKEND_ONLY");
-	// The LingoDB database directory may be overridden via the second CLI
-	// argument (e.g. `duckdb db.duckdb my_lingodb_dir/`), which the shell
-	// forwards through the LINGODB_DB_DIR environment variable. Falls back to
-	// "bench_db" when no directory is supplied.
-	const char *lingodbDbDir = std::getenv("LINGODB_DB_DIR");
-	std::shared_ptr<lingodb::runtime::Session> session =
-	    lingodb::runtime::Session::createSession(lingodbDbDir ? lingodbDbDir : "bench_db", eagerLoading);
-	lingodb::compiler::support::eval::init();
+	// The LingoDB session (loaded catalog + Arrow table data), the eval runtime, and
+	// the scheduler are expensive to build but identical for every query in this
+	// process, so they are created once on the first call and reused thereafter. Only
+	// the per-query config/executer/module below is rebuilt each time. This keeps the
+	// cold-load cost off every query but the first -- run all queries in a single
+	// process (one mode) to pay it once. Local statics are initialized thread-safely
+	// and lazily on first use (C++11).
+	//
+	// The LingoDB database directory may be overridden via the second CLI argument
+	// (e.g. `duckdb db.duckdb my_lingodb_dir/`), forwarded through the LINGODB_DB_DIR
+	// environment variable. Falls back to "bench_db" when no directory is supplied.
+	static std::shared_ptr<lingodb::runtime::Session> session = [] {
+		bool eagerLoading = std::getenv("LINGODB_BACKEND_ONLY");
+		const char *lingodbDbDir = std::getenv("LINGODB_DB_DIR");
+		auto s = lingodb::runtime::Session::createSession(lingodbDbDir ? lingodbDbDir : "bench_db", eagerLoading);
+		lingodb::compiler::support::eval::init();
+		return s;
+	}();
+	// Hold one scheduler handle for the whole process. startScheduler() returns a
+	// handle to the already-running scheduler on later calls, and the scheduler stops
+	// only when the last handle is destroyed -- so keeping it static avoids the
+	// per-query start/stop.
+	static std::unique_ptr<lingodb::scheduler::SchedulerHandle> scheduler = lingodb::scheduler::startScheduler();
 
 	lingodb::execution::ExecutionMode runMode = lingodb::execution::getExecutionMode();
 	// std::cout << "Execution mode: " << static_cast<int>(runMode) << "\n";
@@ -65,7 +79,6 @@ void runMLIR() {
 	auto queryExecutionConfig = lingodb::execution::createQueryExecutionConfig(runMode, false);
 	queryExecutionConfig->timingProcessor = std::make_unique<ConciseTimingPrinter>();
 
-	auto scheduler = lingodb::scheduler::startScheduler();
 	auto executer = lingodb::execution::QueryExecuter::createDefaultExecuter(std::move(queryExecutionConfig), *session);
 	executer->fromGlobalContext(true);
 	lingodb::scheduler::awaitEntryTask(std::make_unique<lingodb::execution::QueryExecutionTask>(std::move(executer)));
