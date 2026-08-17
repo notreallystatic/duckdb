@@ -454,10 +454,10 @@ void ClientContext::compileQuery(LogicalOperator* logical_plan) {
 			mlir::func::FuncOp funcOp = builder.create<mlir::func::FuncOp>(builder.getUnknownLoc(), "main", builder.getFunctionType({}, {}));
 			funcOp.getBody().push_back(mainBlock);
 		}
-		mlir::OpPrintingFlags flags;
-   		flags.assumeVerified();
-   		moduleOp.print(llvm::outs(), flags);
-		std::cout << "\n" << "[ClientContext](CreatePreparedStatementInternal) :: Finished printing the MLIR module\n";
+		// mlir::OpPrintingFlags flags;
+   		// flags.assumeVerified();
+   		// moduleOp.print(llvm::outs(), flags);
+		// std::cout << "\n" << "[ClientContext](CreatePreparedStatementInternal) :: Finished printing the MLIR module\n";
 	} catch (std::exception &ex) {
 		std::cerr << "Error during MLIR resolution: " << ex.what() << std::endl;
 	}
@@ -522,6 +522,10 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 		          << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - _attrib_run_start).count()
 		          << " [ms]" << std::endl;
 		result->is_compiled_query = true;
+		// LingoDB already printed the result rows itself; the QueryResult we hand back is an
+		// empty placeholder. Mark it as returning nothing so the shell does not render an
+		// empty "0 rows" box on top of the compiled output.
+		result->properties.return_type = StatementReturnType::NOTHING;
 		return result;
 	}
 
@@ -561,6 +565,8 @@ ClientContext::CreatePreparedStatementInternal(ClientContextLock &lock, const st
 			          << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - _attrib_run_start).count()
 			          << " [ms]" << std::endl;
 			result->is_compiled_query = true;
+			// See mode 1: suppress the empty result box for compiled queries.
+			result->properties.return_type = StatementReturnType::NOTHING;
 			return result;
 		}
 	}
