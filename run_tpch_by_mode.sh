@@ -8,7 +8,7 @@
 # with an empty DuckDB buffer pool and no LingoDB session, and interleaving the modes
 # means a mode is never measured immediately after itself, so one mode cannot inherit
 # a warm state left by its own previous run. What this does NOT clear is the OS page
-# cache, which survives process exit -- see the note at the end of this header.
+# cache, which survives process exit.
 #
 # Two suites ship with the harness, selected with --suite:
 #   tpch   (default) the 22 TPC-H queries in extension/tpch/dbgen/queries
@@ -49,7 +49,9 @@
 # one compiled query takes down every query behind it. The harness therefore retries:
 # it identifies the query the process died on, drops it, and restarts the mode from
 # just after it, keeping everything already measured. A dropped query is reported as
-# FAILED, one that never got a turn before --max-retries ran out as INCOMPLETE.
+# FAILED, one that never got a turn before --max-retries ran out as INCOMPLETE. A query
+# whose statement fails without killing the process (DuckDB prints "<Kind> Error: ...")
+# is reported as ERROR, and the failed runs contribute no numbers to its row.
 #
 # A retry is a new process, so it reloads the whole LingoDB session. The warm-up runs
 # again to absorb that, and the re-warm-up's timings are discarded rather than folded
@@ -82,9 +84,15 @@
 #                       L's total is understated relative to the other three by the
 #                       cost of its frontend. Treat cross-mode totals involving L as
 #                       slightly generous to L rather than as like for like.
+#   total_runtime       end-to-end time in seconds without the residual: for modes 1 and
+#                       2 it is duckdb_real_s - residual_ms/1000, taken per run before
+#                       the minimum; for modes 0 and L it equals duckdb_real_s. The
+#                       residual is mostly the munmap of the query's runtime buffers in
+#                       ~ExecutionContext (about 115 ms per GB on x86 Linux), which mode L
+#                       never reports and DuckDB never pays, as it keeps its buffer pool.
 #
 # Usage:
-#   ./run_tpch_by_mode.sh                    # all 22 queries, modes 0 then 1 then 2
+#   ./run_tpch_by_mode.sh                    # all 22 queries, modes 0, 1, 2, then L
 #   ./run_tpch_by_mode.sh --suite micro      # the micro-benchmark instead
 #   ./run_tpch_by_mode.sh --suite micro --queries c01,c04,v02
 #   ./run_tpch_by_mode.sh --query-dir my/queries --warmup-query first
@@ -281,7 +289,8 @@ while [ $# -gt 0 ]; do
 		--lingodb-native) LINGODB_NATIVE=1; shift ;;
 		--no-lingodb-native) LINGODB_NATIVE=0; shift ;;
 		--dry-run) DRY_RUN=1; shift ;;
-		-h|--help) sed -n '2,95p' "$0"; exit 0 ;;
+		# The whole leading comment block, however long it grows.
+		-h|--help) awk 'NR > 1 && /^#/ { print; next } NR > 1 { exit }' "$0"; exit 0 ;;
 		*) echo "unknown argument: $1" >&2; exit 2 ;;
 	esac
 done
@@ -337,7 +346,7 @@ esac
 [ -z "$WARMUP_QUERY" ] && WARMUP_QUERY="$SUITE_WARMUP"
 if [ -z "$QUERY_DIR" ]; then
 	echo "ERROR: unknown suite '$SUITE' and no --query-dir given." >&2
-	echo "       known suites: tpch, micro" >&2
+	echo "       known suites: tpch, micro, final, test, presentation, count, exploratory" >&2
 	exit 2
 fi
 
@@ -657,7 +666,7 @@ build_name_list() {
 # Split a LingoDB session's stderr into per-query rows. The shell prints one timing
 # line per statement, and every query is preceded by its marker statement, so the
 # lines arrive in pairs: marker, query, marker, query. The second of each pair is the
-# query. Emits the same seven columns as parse_mode_output, with the total in the
+# query. Emits the same nine columns as parse_mode_output, with the total in the
 # residual column and nothing in the DuckDB-only ones.
 parse_lingodb_output() {
 	awk '
@@ -681,7 +690,10 @@ parse_lingodb_output() {
 				# no timing entry), so this total excludes the mode L parsing and module
 				# construction. It is understated by that amount. NOTE: no apostrophes
 				# in this block, it sits inside a single-quoted awk program.
-				if (q <= nn) printf "%s\t%.6f\t%s\t%s\t\t%.3f\t\n", name[q], (c + e) / 1000, c, e, c + e
+				# There is no residual to remove, so total_runtime repeats the real column.
+				# The last field is err: a failing statement aborts this shell, which the
+				# retry logic handles, so a row that is printed always succeeded.
+				if (q <= nn) printf "%s\t%.6f\t%s\t%s\t\t%.3f\t\t%.6f\t0\n", name[q], (c + e) / 1000, c, e, c + e, (c + e) / 1000
 			}
 		}
 	' "$2" "$1"
@@ -690,25 +702,38 @@ parse_lingodb_output() {
 # Split one mode's combined stdout+stderr into per-query rows. The ".print" markers
 # delimit segments; timing lines that fall inside a segment belong to that query.
 # BSD-awk compatible (no gawk match(...,arr)). Emits TSV: query real comp exec runmlir
+# residual plan total err
 parse_mode_output() {
 	awk '
-		function emit(   resid) {
+		function emit(   resid, total) {
 			if (curq == "") return
+			# DuckDB prints a Run Time line even for a statement that failed, so a failed
+			# run would otherwise pass as a very fast one. It keeps its row, with no
+			# numbers and err=1, and the report marks the query ERROR.
+			if (err) { printf "%s\t\t\t\t\t\t\t\t1\n", curq; return }
 			# residual: what runMLIR spent outside compile and execute (executer setup,
 			# scheduling, result readback). Computed per run here so the aggregation only
 			# has to take a minimum.
 			resid = ""
 			if (runmlir != "" && comp != "" && exec != "") resid = runmlir - comp - exec
-			printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", curq, real, comp, exec, runmlir, resid, plan
+			# total_runtime: the real time minus this same run residual. Mode 0 has no
+			# residual, so its total is its real time.
+			total = real
+			if (real != "" && resid != "") total = sprintf("%.6f", real - resid / 1000)
+			printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t0\n", curq, real, comp, exec, runmlir, resid, plan, total
 		}
 		index($0, "===QUERY") > 0 {
 			emit()
 			line = $0
 			sub(/.*===QUERY /, "", line)
 			sub(/===.*/, "", line)
-			curq = line; real = ""; comp = ""; exec = ""; runmlir = ""; plan = ""
+			curq = line; real = ""; comp = ""; exec = ""; runmlir = ""; plan = ""; err = 0
 			next
 		}
+		# DuckDB reports a failed statement as "<Kind> Error: ...", e.g. "Catalog Error:"
+		# or "INTERNAL Error:", and the MLIR translation as "Error during MLIR resolution".
+		# Result rows never match, since duckbox draws them inside box characters.
+		/^([A-Za-z]+ )*Error: / || /^Error during MLIR resolution/ { err = 1; next }
 		index($0, "compilation:") > 0 && index($0, "execution:") > 0 { comp = $2; exec = $5; next }
 		index($0, "runmlir_total:") > 0 { runmlir = $3; next }
 		# Everything DuckDB spent before the LingoDB backend saw the query. Mode 1 reports
@@ -723,10 +748,10 @@ parse_mode_output() {
 }
 
 # Reduce the N parsed rows for a single query (piped in as TSV: query real comp exec
-# runmlir residual plan) to one line of aggregates. Min is the headline (noise is
-# one-sided); median of execution is also reported. BSD-awk compatible (manual
-# insertion-sort for the median). Emits TSV:
-#   n  real_min  comp_min  exec_min  exec_med  runmlir_min  residual_min  plan_min
+# runmlir residual plan total err) to one line of aggregates. Min is the headline (noise
+# is one-sided); median of execution is also reported. BSD-awk compatible (manual
+# insertion-sort for the median). n counts the runs that did not fail. Emits TSV:
+#   n  real_min  comp_min  exec_min  exec_med  runmlir_min  residual_min  plan_min  total_min  errors
 aggregate_query() {
 	awk -F'\t' '
 		function mn(a, k,   i, m) { if (k == 0) return ""; m = a[1]; for (i = 2; i <= k; i++) if (a[i] < m) m = a[i]; return m }
@@ -737,6 +762,7 @@ aggregate_query() {
 			return (k % 2) ? b[(k+1)/2] : (b[k/2] + b[k/2+1]) / 2.0
 		}
 		{
+			if ($9 == "1") { errs++; next }
 			rows++
 			if ($2 != "") R[++nr] = $2
 			if ($3 != "") C[++nc] = $3
@@ -744,10 +770,11 @@ aggregate_query() {
 			if ($5 != "") M[++nm] = $5
 			if ($6 != "") D[++nd] = $6
 			if ($7 != "") P[++np] = $7
+			if ($8 != "") T[++nt] = $8
 		}
 		END {
-			printf "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", rows, mn(R, nr), mn(C, nc), mn(E, ne),
-				(ne ? med(E, ne) : ""), mn(M, nm), mn(D, nd), mn(P, np)
+			printf "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\n", rows, mn(R, nr), mn(C, nc), mn(E, ne),
+				(ne ? med(E, ne) : ""), mn(M, nm), mn(D, nd), mn(P, np), mn(T, nt), errs
 		}
 	'
 }
@@ -827,7 +854,7 @@ trap cleanup EXIT
 	echo "git      : $(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo n/a)"
 } | tee "$LOG"
 
-total=0; ok=0; failed=0; skipped=0
+total=0; ok=0; failed=0; skipped=0; errored=0
 
 # Per-mode accumulators. Rows from every iteration of a mode land in one file, so the
 # min/median at the end is taken across iterations.
@@ -873,7 +900,7 @@ for it in $(seq 1 "$REPEATS"); do
 			else
 				# A retry within an iteration reloads the session again. Parsed, then dropped.
 				wmark="__rewarmup__"
-				echo "--- iteration $it mode $m: attempt $attempt, $(sched_len "$SCHED") query run(s) left, warming up again (metrics discarded)" | tee -a "$LOG"
+				echo "--- iteration $it mode $m: attempt $attempt, $(sched_len "$SCHED") query run(s) left$([ "$WARMUP" -eq 1 ] && echo ", warming up again (metrics discarded)")" | tee -a "$LOG"
 			fi
 
 			if [ "$m" = "L" ]; then
@@ -950,7 +977,10 @@ for it in $(seq 1 "$REPEATS"); do
 			reached="$(awk -F'\t' '$1 != "__warmup__" && $1 != "__rewarmup__" { n++ } END { print n + 0 }' "$ATTEMPT" 2>/dev/null || echo 0)"
 			pending="$(sched_len "$SCHED")"
 
-			if [ "$prc" -eq 0 ] && [ "$reached" -ge "$pending" ]; then
+			# duckdb exits 1 when any statement failed, which is a normal finish here: the
+			# failed query is already marked by its err flag. Only a signal (or the
+			# watchdog, reported as 142) means the process went down.
+			if [ "$prc" -lt 128 ] && [ "$reached" -ge "$pending" ]; then
 				break                   # the whole remaining schedule ran
 			fi
 
@@ -1044,11 +1074,17 @@ for m in $RUN_MODES; do
 		real="$(echo "$agg" | cut -f2)"; comp="$(echo "$agg" | cut -f3)"
 		exec="$(echo "$agg" | cut -f4)"; exec_med="$(echo "$agg" | cut -f5)"
 		runmlir="$(echo "$agg" | cut -f6)"; residual="$(echo "$agg" | cut -f7)"
-		plan="$(echo "$agg" | cut -f8)"
+		plan="$(echo "$agg" | cut -f8)"; total_rt="$(echo "$agg" | cut -f9)"
+		errs="$(echo "$agg" | cut -f10)"
 		case " $mode_failed " in *" $q "*) was_skipped=1 ;; *) was_skipped=0 ;; esac
 		if [ "$was_skipped" -eq 1 ]; then
 			status="FAILED"; n=0
 			skipped=$((skipped + 1))
+		elif [ "${errs:-0}" -gt 0 ]; then
+			# The statement failed in at least one run. n still counts the runs that
+			# succeeded, and their numbers are kept, but the row is not a result.
+			status="ERROR"
+			errored=$((errored + 1))
 		elif [ -z "$rows" ] || [ "${n:-0}" -eq 0 ]; then
 			status="INCOMPLETE"; n=0
 			failed=$((failed + 1))
@@ -1065,10 +1101,10 @@ for m in $RUN_MODES; do
 				geo_vals="$geo_vals $exec"
 			fi
 		fi
-		printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
+		printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
 			"$q" "$m" "$mname" "$status" "$n" \
-			"${real:-}" "${comp:-}" "${exec:-}" "${exec_med:-}" "${runmlir:-}" "${residual:-}" "${plan:-}" >> "$RAW"
-		echo "--- $q mode $m ($mname): $status n=$n  real=${real:--}s comp=${comp:--}ms exec_min=${exec:--}ms exec_med=${exec_med:--}ms runmlir=${runmlir:--}ms residual=${residual:--}ms" | tee -a "$LOG"
+			"${real:-}" "${total_rt:-}" "${comp:-}" "${exec:-}" "${exec_med:-}" "${runmlir:-}" "${residual:-}" "${plan:-}" >> "$RAW"
+		echo "--- $q mode $m ($mname): $status n=$n  real=${real:--}s total=${total_rt:--}s comp=${comp:--}ms exec_min=${exec:--}ms exec_med=${exec_med:--}ms runmlir=${runmlir:--}ms residual=${residual:--}ms" | tee -a "$LOG"
 	done
 
 	if [ "$m" != "0" ]; then
@@ -1086,7 +1122,7 @@ done
 	# Numeric columns are the MIN across the query's repeats (== the single value when
 	# --repeats 1); execution_ms_median is the median of execution across repeats; n is the
 	# number of completed runs.
-	echo "query,mode,mode_name,status,n,duckdb_real_s,compilation_ms,execution_ms,execution_ms_median,runmlir_total_ms,residual_ms,plan_ms"
+	echo "query,mode,mode_name,status,n,duckdb_real_s,total_runtime,compilation_ms,execution_ms,execution_ms_median,runmlir_total_ms,residual_ms,plan_ms"
 	sort -t',' -k1,1 -k2,2 "$RAW"
 } > "$CSV"
 
@@ -1094,7 +1130,7 @@ done
 	echo
 	echo "=============================================================="
 	echo "DONE  $(date)"
-	echo "rows: $total   ok: $ok   failed: $skipped   incomplete: $failed"
+	echo "rows: $total   ok: $ok   failed: $skipped   error: $errored   incomplete: $failed"
 	echo "full log : $LOG"
 	echo "csv      : $CSV"
 	echo "=============================================================="
