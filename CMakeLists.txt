@@ -66,7 +66,9 @@ include_directories(third_party/zstd/include)
 
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 # set(CMAKE_CXX_STANDARD 20 CACHE STRING "C++ standard to conform to")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g -DTRACER")
+# No -DTRACER: with it, LingoDB re-serializes every trace record since process start
+# to lingodb.trace after each query, so the per-query overhead grows with every query.
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g")
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # Silence warning about default label in switch which covers all enumeration values (false positive)
